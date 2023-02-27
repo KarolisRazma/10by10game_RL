@@ -5,18 +5,20 @@ class Chip:
         # when chip is not placed, it's position is -1
         self.row = -1
         self.col = -1
-    
+
     # setters
-    def setRow(self, row):
+    def set_row(self, row):
         self.row = row
-    def setCol(self, col):
+
+    def set_col(self, col):
         self.col = col
-    
+
     # getters
-    def getRow(self):
+    def get_row(self):
         return self.row
-    def getCol(self):
+
+    def get_col(self):
         return self.col
-    
-    def getValue(self):
+
+    def get_value(self):
         return self.value

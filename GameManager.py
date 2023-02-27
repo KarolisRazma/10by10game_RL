@@ -1,271 +1,327 @@
 import random
 import os
-import Color as c
-import Chip as ch
-import Board as b
-import Player as p
+import Color
+import Chip
+import Board
+import agent as a
+# import Player  # irrelevant atm
+
 
 class GameManager:
     def __init__(self):
-        self.board = b.Board()
+        self.board = Board.Board()
         self.container = []
-        self.players = [p.Player("Mister One"), p.Player("Mister Two")] # create players
-        self.createContainer() # fill container
-        self.initialChips() # players take 2 chips
+        # old Player used for user interaction
+        # self.players = [Player.Player("Mister One"), Player.Player("Mister Two")]  # create players
+
+        # new brute force Agent
+        self.agents = [a.Agent("[1] Brute Force Agent"), a.Agent("[2] Brute Force Agent")]
+        self.create_container()  # fill container
+        self.initial_chips()  # players take 2 chips
 
         # place chip in the board's center
-        index = self.selectRandomlyFromContainer()
-        self.placeChipOnBoard(self.getChipFromContainer(index), 2, 2)
-        self.removeChipFromContainer(index)
+        index = self.select_randomly_from_container()
+        self.place_chip_on_board(self.get_chip_from_container(index), 2, 2)
+        self.remove_chip_from_container(index)
 
-        # select starting player randomly
-        random.shuffle(self.players)
+        # select starting player/agent randomly
+        random.shuffle(self.agents)
 
-    def gameLoop(self):
+    def game_loop(self):
         turn = 0
         while True:
+
+            # very "fancy" CLI display
             os.system("clear")
             self.board.display()
-            self.displayScore()
-            self.displayTurn(turn)
-            self.displayUserChips(turn)
-            self.displayChipsLeftInContainer()
+            self.display_score()
+            self.display_turn(turn)
+            self.display_user_chips(turn)
+            self.display_chips_left_in_container()
 
             # get index (of chip) and row/col 
-            rowColChip = self.userInput()
-            row = int(rowColChip[0]) - 1
-            col = int(rowColChip[1]) - 1
-            chipIndex = int(rowColChip[2])
 
-            selectedChip = self.players[turn].useChip(chipIndex)  # take chip from player's hand
-            self.placeChipOnBoard(selectedChip, row, col)  # player place one chip on the board
+            # LEGACY (user interaction)
+            # row_col_chip = self.user_input()
+            # row = int(row_col_chip[0]) - 1
+            # col = int(row_col_chip[1]) - 1
+            # chip_index = int(row_col_chip[2])
 
-            combinationsOfTen = self.findTens()  # check if somehow there is value of 10 on the board
+            # NEW (brute force agent)
+            agent = self.agents[turn]  # take agent whose turn it is
+            agent.get_actions_for_placing(self.board)  # get agent placing actions
+            agent_action = agent.select_action_randomly()  # get which action agent wants to select
+            row = agent_action.row  # same as before in user interaction
+            col = agent_action.col
+            chip_index = agent_action.chip_index
 
-            # player takes these chips
+            selected_chip = agent.use_chip(chip_index)  # take chip from player's/agent's hand
+
+            self.place_chip_on_board(selected_chip, row, col)  # player/agent place one chip on the board
+
+            combinations_of_ten = self.find_tens()  # check if somehow there is value of 10 on the board
+
+            # player/agent takes these chips
             # except the one placed this round
-            if combinationsOfTen:
+            if combinations_of_ten:
+                # very "fancy" CLI display
                 os.system("clear")
                 self.board.display()
-                self.displayCombinations(combinationsOfTen)
+                self.display_combinations(combinations_of_ten)
 
-                index = input("Select combination: ") # choose which combination to collect
-                index = int(index)
-                selectedCombination = combinationsOfTen[index]
+                # LEGACY
+                # index = input("Select combination: ")  # choose which combination to collect
+                # index = int(index)
 
-                for chip in selectedCombination:
+                agent.get_actions_for_taking(combinations_of_ten)  # agent gets all actions for taking chips
+                action = agent.select_action_randomly()             # selects randomly, returns index of action
+                selected_combination = combinations_of_ten[action.combination_index]
+
+                for chip in selected_combination:
                     # tile where the chip belongs
-                    tile = self.board.getTileAtIndex(chip.getRow() * 5 + chip.getCol())
+                    tile = self.board.get_tile_at_index(chip.get_row() * 5 + chip.get_col())
 
-                    # if its the same chip that was placed this round, player can't take it
-                    if row == chip.getRow() and col == chip.getCol():
+                    # if it's the same chip that was placed this round, player/agent can't take it
+                    if row == chip.get_row() and col == chip.get_col():
                         continue
 
                     # return to container
-                    if tile.getColor() == c.Color.RED:
+                    if tile.get_color() == Color.Color.RED:
                         self.container.append(chip)
-                        self.removeChipFromBoard(chip.getRow(), chip.getCol())
+                        self.remove_chip_from_board(chip.get_row(), chip.get_col())
 
                     # take a chip from board
                     # and collect one more from the container
-                    if tile.getColor() == c.Color.BLUE:
+                    if tile.get_color() == Color.Color.BLUE:
                         # from board
-                        self.removeChipFromBoard(chip.getRow(), chip.getCol())
-                        self.players[turn].capturedChips.append(chip)
-                        self.players[turn].score += 1
-                        # from container
-                        randomIndex = self.selectRandomlyFromContainer()
-                        self.players[turn].capturedChips.append(self.getChipFromContainer(randomIndex))
-                        self.players[turn].score += 1
-                        self.removeChipFromContainer(randomIndex)
+                        self.remove_chip_from_board(chip.get_row(), chip.get_col())
+                        self.agents[turn].captured_chips.append(chip)
+                        self.agents[turn].score += 1
+                        # from container, do not forget to check if container has chips!
+                        # if container is not empty
+                        random_index = self.select_randomly_from_container()
+                        self.agents[turn].captured_chips.append(self.get_chip_from_container(random_index))
+                        self.agents[turn].score += 1
+                        self.remove_chip_from_container(random_index)
+                        # if container is empty
+                        if len(self.container) == 0:
+                            print("Container became empty while drawing after taking chip from blue tile")
+                            end_game_flag = self.is_end_game()
+                            if end_game_flag > 0:
+                                self.deal_with_endgame(end_game_flag, turn)
+                                break
 
                     # collect chip normally
-                    if tile.getColor() == c.Color.WHITE:
-                        self.removeChipFromBoard(chip.getRow(), chip.getCol())
-                        self.players[turn].capturedChips.append(chip)
-                        self.players[turn].score += 1
+                    if tile.get_color() == Color.Color.WHITE:
+                        self.remove_chip_from_board(chip.get_row(), chip.get_col())
+                        self.agents[turn].captured_chips.append(chip)
+                        self.agents[turn].score += 1
+
+            # draw new chip from the container
+            # this if is related to drawing after taking chip from blue tile
+            if len(self.container) != 0:
+                index = self.select_randomly_from_container()
+                self.draw_chip_from_container(index, turn)
+                self.remove_chip_from_container(index)
+            else:
+                break
 
             # in the end of the round
             # check for end game conditions
-            endGameFlag = self.isEndGame()
-            if endGameFlag > 0:
-                if endGameFlag == 1:
-                    print("Player1: {} won".format(self.players[turn].id))
-                if endGameFlag == 2:
-                    print("Player2: {} won".format(self.players[turn].id))
-                if endGameFlag == 3:
-                    if self.players[0].score < self.players[1].score:
-                        print("Player1: {} won".format(self.players[turn].id))
-                    if self.players[0].score > self.players[1].score:
-                        print("Player2: {} won".format(self.players[turn].id))
-                    else:
-                        print("Draw")
+            end_game_flag = self.is_end_game()
+            if end_game_flag > 0:
+                self.deal_with_endgame(end_game_flag, turn)
                 break
 
-            # draw new chip from the container
-            index = self.selectRandomlyFromContainer()
-            self.drawChipFromContainer(index, turn)
-            self.removeChipFromContainer(index)
-
-            # next player's turn
+            # next player's/agent's turn
             turn = 0 if turn == 1 else 1
 
     # game logic, finding rows of ten
     # find every possible line of value 10
     ##############################################
-    def findTens(self):
-        combinationsOfTen = []
+    def find_tens(self):
+        combinations_of_ten = []
 
         # diagonally
-        indexesStart = [0, 1, 2, 5, 10]
-        indexesEnd = [24, 19, 14, 23, 22]
-        combinationsOfTen += self.findChipsInLine(indexesStart, indexesEnd, 6)
+        indexes_start = [0, 1, 2, 5, 10]
+        indexes_end = [24, 19, 14, 23, 22]
+        combinations_of_ten += self.find_chips_in_line(indexes_start, indexes_end, 6)
 
-        indexesStart = [2, 3, 4, 9, 14]
-        indexesEnd = [10, 15, 20, 21, 22]
-        combinationsOfTen += self.findChipsInLine(indexesStart, indexesEnd, 4)
+        indexes_start = [2, 3, 4, 9, 14]
+        indexes_end = [10, 15, 20, 21, 22]
+        combinations_of_ten += self.find_chips_in_line(indexes_start, indexes_end, 4)
 
         # vertically
-        indexesStart = [0, 1, 2, 3, 4]
-        indexesEnd = [20, 21, 22, 23, 24]
-        combinationsOfTen += self.findChipsInLine(indexesStart, indexesEnd, 5)
+        indexes_start = [0, 1, 2, 3, 4]
+        indexes_end = [20, 21, 22, 23, 24]
+        combinations_of_ten += self.find_chips_in_line(indexes_start, indexes_end, 5)
 
         # horizontally
-        indexesStart = [0, 5, 10, 15, 20]
-        indexesEnd = [4, 9, 14, 19, 24]
-        combinationsOfTen += self.findChipsInLine(indexesStart, indexesEnd, 1)
-        return combinationsOfTen
+        indexes_start = [0, 5, 10, 15, 20]
+        indexes_end = [4, 9, 14, 19, 24]
+        combinations_of_ten += self.find_chips_in_line(indexes_start, indexes_end, 1)
+        return combinations_of_ten
 
     # find possible line of value 10 (diagonally or vertically or horizontally)
-    def findChipsInLine(self, indexesStart, indexesEnd, indexGrowth):
-        combinationsOfTen = []
-        for (indexStart, indexEnd) in zip(indexesStart, indexesEnd):
-            chipsInLine = []
-            sum = 0
-            while indexStart <= indexEnd:
-                if self.board.isTileEmpty(indexStart):
-                    sum = 0
-                    chipsInLine = []
-                    indexStart += indexGrowth
+    def find_chips_in_line(self, indexes_start, indexes_end, index_growth):
+        combinations_of_ten = []
+        for (index_start, index_end) in zip(indexes_start, indexes_end):
+            chips_in_line = []
+            sum_of_chips_values = 0
+            while index_start <= index_end:
+                if self.board.is_tile_empty(index_start):
+                    sum_of_chips_values = 0
+                    chips_in_line = []
+                    index_start += index_growth
                     continue
                 else:
-                    sum += self.board.chips[indexStart].getValue()
-                    chipsInLine.append(self.board.chips[indexStart])
-                if sum == 10:
-                    temp = chipsInLine.copy()
-                    combinationsOfTen.append(temp)
-                    sum -= chipsInLine[0].getValue()
-                    del chipsInLine[0]
-                if sum > 10:
-                    sum -= chipsInLine[0].getValue()
-                    del chipsInLine[0]
-                indexStart += indexGrowth
-        return combinationsOfTen
+                    sum_of_chips_values += self.board.chips[index_start].get_value()
+                    chips_in_line.append(self.board.chips[index_start])
+                if sum_of_chips_values == 10:
+                    temp = chips_in_line.copy()
+                    combinations_of_ten.append(temp)
+                    sum_of_chips_values -= chips_in_line[0].get_value()
+                    del chips_in_line[0]
+                if sum_of_chips_values > 10:
+                    i = 0
+                    while sum_of_chips_values > 10:
+                        sum_of_chips_values -= chips_in_line[i].get_value()
+                    # prevent situations like this: 1 1 3 3 4
+                    if sum_of_chips_values == 10 and index_start == index_end:
+                        temp = chips_in_line.copy()
+                        combinations_of_ten.append(temp)
+                    del chips_in_line[0]
+                index_start += index_growth
+        return combinations_of_ten
+
     ##############################################
 
     # testing methods (will be deleted later on)
     # user input, printing to screen methods
     ########################################
-    def userInput(self):
-        rowColChip = input("Select row,col,chip: ")
-        return rowColChip
 
-    def displayChipsLeftInContainer(self):
-        return len(self.container)
+    @staticmethod
+    def user_input():
+        row_col_chip = input("Select row,col,chip: ")
+        return row_col_chip
 
-    def displayUserChips(self, turn):
-        chips = self.players[turn].chips
+    def display_chips_left_in_container(self):
+        print("Chips left in container: {}".format(len(self.container)))
+
+    def display_user_chips(self, turn):
+        chips = self.agents[turn].chips
         for (i, chip) in zip(range(len(chips)), chips):
-            print("[{}]. Value: {}".format(i, chip.getValue()))
+            print("[{}]. Value: {}".format(i, chip.get_value()))
 
-    def displayTurn(self, turn):
-        print("It's now {} turn".format(self.players[turn].id))
+    def display_turn(self, turn):
+        print("It's now {} turn".format(self.agents[turn].id))
 
-    def displayCombinations(self, combinationsOfTen):
-        for (i, comb) in zip(range(len(combinationsOfTen)), combinationsOfTen):
+    @staticmethod
+    def display_combinations(combinations_of_ten):
+        for (i, comb) in zip(range(len(combinations_of_ten)), combinations_of_ten):
             for chip in comb:
-                print(
-                    "[{}] Row: {}, Col: {}, Value: {}".format(i, chip.getRow() + 1, chip.getCol() + 1, chip.getValue()))
+                print("[{}] Row: {}, Col: {}, Value: {}"
+                      .format(i, chip.get_row() + 1, chip.get_col() + 1, chip.get_value()))
 
-    def displayScore(self):
-        player1 = self.players[0]
-        player2 = self.players[1]
+    def display_score(self):
+        player1 = self.agents[0]
+        player2 = self.agents[1]
         print("Player1: {} and score {}".format(player1.id, player1.score))
         print("Player2: {} and score {}".format(player2.id, player2.score))
+
     #############################
 
     # misc
     #############################
-    def initialChips(self):
+    def initial_chips(self):
         # player 1 picks 2 initial chips
-        index = self.selectRandomlyFromContainer()
-        self.drawChipFromContainer(index, 0)
-        self.removeChipFromContainer(index)
-        index = self.selectRandomlyFromContainer()
-        self.drawChipFromContainer(index, 0)
-        self.removeChipFromContainer(index)
+        index = self.select_randomly_from_container()
+        self.draw_chip_from_container(index, 0)
+        self.remove_chip_from_container(index)
+        index = self.select_randomly_from_container()
+        self.draw_chip_from_container(index, 0)
+        self.remove_chip_from_container(index)
         # player 2 picks 2 initial chips
-        index = self.selectRandomlyFromContainer()
-        self.drawChipFromContainer(index, 1)
-        self.removeChipFromContainer(index)
-        index = self.selectRandomlyFromContainer()
-        self.drawChipFromContainer(index, 1)
-        self.removeChipFromContainer(index)
+        index = self.select_randomly_from_container()
+        self.draw_chip_from_container(index, 1)
+        self.remove_chip_from_container(index)
+        index = self.select_randomly_from_container()
+        self.draw_chip_from_container(index, 1)
+        self.remove_chip_from_container(index)
 
-    def isEndGame(self):
-        if self.players[0].score >= 10:
+    def is_end_game(self):
+        if self.agents[0].score >= 10:
             return 1
-        if self.players[1].score >= 10:
+        if self.agents[1].score >= 10:
             return 2
-        if self.players[0].score < 10 and self.players[1].score < 10 and not self.container:
+        if self.agents[0].score < 10 and self.agents[1].score < 10 and not self.container:
             return 3
         return 0
+
+    def deal_with_endgame(self, end_game_flag, turn):
+        self.display_score()
+        if end_game_flag == 1:
+            print("Player1: {} won".format(self.agents[turn].id))
+            return
+        if end_game_flag == 2:
+            print("Player2: {} won".format(self.agents[turn].id))
+            return
+        if end_game_flag == 3:
+            if self.agents[0].score < self.agents[1].score:
+                print("Player1: {} won".format(self.agents[turn].id))
+                return
+            if self.agents[0].score > self.agents[1].score:
+                print("Player2: {} won".format(self.agents[turn].id))
+                return
+            else:
+                print("Draw")
     #############################
 
     # BOARD METHODS
     #############################
     # expected to get row and column already configured to be an index (row-- and column--)
-    def placeChipOnBoard(self, chip, row, column):
-        chip.setRow(row)
-        chip.setCol(column)
+    def place_chip_on_board(self, chip, row, column):
+        chip.set_row(row)
+        chip.set_col(column)
         self.board.chips[row * 5 + column] = chip
 
     # expected to get row and column already configured to be an index (row-- and column--)
     # removes chip from the board
-    def removeChipFromBoard(self, row, column):
+    def remove_chip_from_board(self, row, column):
         self.board.chips[row * 5 + column] = None
 
     # expected to get row and column already configured to be an index (row-- and column--)
-    def collectChipFromBoard(self, row, column, playerIndex):
-        self.players[playerIndex].capturedChips.append(self.board.chips[row * 5 + column])
+    def collect_chip_from_board(self, row, column, player_index):
+        self.agents[player_index].captured_chips.append(self.board.chips[row * 5 + column])
+
     #############################
 
     # CONTAINER METHODS
     #############################
-    def removeChipFromContainer(self, index):
+    def remove_chip_from_container(self, index):
         del self.container[index]
 
     # turn is current player's turn (to take chip from container or take actions)
-    def drawChipFromContainer(self, index, turn):
-        self.players[turn].chips.append(self.container[index])
+    def draw_chip_from_container(self, index, turn):
+        self.agents[turn].chips.append(self.container[index])
 
     # returns index
-    def selectRandomlyFromContainer(self):
+    def select_randomly_from_container(self):
         return random.randint(0, len(self.container) - 1)
 
-    def getChipFromContainer(self, index):
+    def get_chip_from_container(self, index):
         return self.container[index]
 
-    def createContainer(self):
+    def create_container(self):
         for i in range(28):
             if i < 7:
-                self.container.append(ch.Chip(1))
+                self.container.append(Chip.Chip(1))
                 continue
             if i < 14:
-                self.container.append(ch.Chip(2))
+                self.container.append(Chip.Chip(2))
                 continue
             if i < 21:
-                self.container.append(ch.Chip(3))
+                self.container.append(Chip.Chip(3))
                 continue
-            self.container.append(ch.Chip(4))
+            self.container.append(Chip.Chip(4))
     #############################

@@ -1,15 +1,14 @@
 class Player:
 
     # id = nickname of the player
-    def __init__(self, id):
-        self.id = id 
+    def __init__(self, nickname):
+        self.id = nickname
         self.score = 0
-        self.chips = [] # current chips in hand
-        self.capturedChips = [] # chips captured = score
-        self.wins = 0 # this games is should be bo2 (still not implemented)
+        self.chips = []  # current chips in hand
+        self.captured_chips = []  # chips captured = score
 
     # returns used chip and deletes it from player's inventory 
-    def useChip(self, chipIndex):
-        chip = self.chips[chipIndex]
-        del self.chips[chipIndex]
+    def use_chip(self, chip_index):
+        chip = self.chips[chip_index]
+        del self.chips[chip_index]
         return chip
