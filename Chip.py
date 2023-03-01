@@ -6,6 +6,9 @@ class Chip:
         self.row = -1
         self.col = -1
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
     # setters
     def set_row(self, row):
         self.row = row

@@ -1,6 +1,7 @@
 import math
 import random
 
+
 class Agent:
     def __init__(self, nickname):
         # there's two ways to implement:
@@ -19,6 +20,13 @@ class Agent:
         self.score = 0
         self.chips = []  # current chips in hand
         self.captured_chips = []  # len(chips_captured) = score
+        self.wins = 0
+
+    # reset score/chips/captured_chips after episode is complete
+    def reset(self):
+        self.score = 0
+        self.chips = []
+        self.captured_chips = []
 
     # same function from class Player
     # returns used chip and deletes it from agent's inventory
@@ -60,9 +68,15 @@ class PlaceChipAction:
         self.col = col
         self.chip_index = chip_index
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
 
 # defining short class TakeChipsAction for the Agent class
 # its purpose is to represent agent's action to take chips from the board
 class TakeChipsAction:
     def __init__(self, combination_index):
         self.combination_index = combination_index
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__

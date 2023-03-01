@@ -8,6 +8,9 @@ class Board:
         self.chips = [None] * 25
         self.create_tiles()
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
     def create_tiles(self):
         for i in range(25):
             if i == 0 or i == 4 or i == 12 or i == 20 or i == 24:
@@ -21,11 +24,22 @@ class Board:
             tile = Tile.Tile(Color.Color.WHITE)
             self.tiles.append(tile)
 
+    def clear_chips(self):
+        for i in range(25):
+            if not self.is_tile_empty(i):
+                self.chips[i] = None
+
     def is_tile_empty(self, index):
         if self.chips[index] is None:
             return True
         else:
             return False
+
+    def make_copy(self):
+        b = Board()
+        b.tiles = self.tiles.copy()
+        b.chips = self.chips.copy()
+        return b
 
     # get chip
     def get_chip_at_index(self, index):

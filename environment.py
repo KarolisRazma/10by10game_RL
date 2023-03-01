@@ -1,21 +1,34 @@
 import random
-import os
+# import os
 import Color
 import Chip
 import Board
 import agent as a
-# import Player  # irrelevant atm
+import q_learning as q
 
 
-class GameManager:
+class Environment:
     def __init__(self):
-        self.board = Board.Board()
-        self.container = []
-        # old Player used for user interaction
-        # self.players = [Player.Player("Mister One"), Player.Player("Mister Two")]  # create players
+        self.qtable = q.QTable()
 
-        # new brute force Agent
+        # create board instance
+        self.board = Board.Board()
+
+        # create empty container
+        self.container = []
+
+        # brute force Agent
         self.agents = [a.Agent("[1] Brute Force Agent"), a.Agent("[2] Brute Force Agent")]
+        self.draws = 0  # to count draws
+
+        # set environment in initial position
+        self.reset()
+
+    def reset(self):
+        self.board.clear_chips()
+        self.container = []
+        self.agents[0].reset()
+        self.agents[1].reset()
         self.create_container()  # fill container
         self.initial_chips()  # players take 2 chips
 
@@ -27,33 +40,31 @@ class GameManager:
         # select starting player/agent randomly
         random.shuffle(self.agents)
 
-    def game_loop(self):
+    def start_episode(self):
+        # define turn, 0 - player1, 1 - player2
         turn = 0
+        self.reset()
         while True:
+            # CLI display
+            # os.system("clear")
+            # print()
+            # self.board.display()
+            # self.display_score()
+            # self.display_turn(turn)
+            # self.display_user_chips(turn)
+            # self.display_chips_left_in_container()
 
-            # very "fancy" CLI display
-            os.system("clear")
-            self.board.display()
-            self.display_score()
-            self.display_turn(turn)
-            self.display_user_chips(turn)
-            self.display_chips_left_in_container()
+            # get index (of chip) and row/col
 
-            # get index (of chip) and row/col 
-
-            # LEGACY (user interaction)
-            # row_col_chip = self.user_input()
-            # row = int(row_col_chip[0]) - 1
-            # col = int(row_col_chip[1]) - 1
-            # chip_index = int(row_col_chip[2])
-
-            # NEW (brute force agent)
+            # (brute force agent)
             agent = self.agents[turn]  # take agent whose turn it is
             agent.get_actions_for_placing(self.board)  # get agent placing actions
             agent_action = agent.select_action_randomly()  # get which action agent wants to select
             row = agent_action.row  # same as before in user interaction
             col = agent_action.col
             chip_index = agent_action.chip_index
+
+            # self.qtable.initialise_q_values(self.board.make_copy(), agent_action)
 
             selected_chip = agent.use_chip(chip_index)  # take chip from player's/agent's hand
 
@@ -64,14 +75,10 @@ class GameManager:
             # player/agent takes these chips
             # except the one placed this round
             if combinations_of_ten:
-                # very "fancy" CLI display
-                os.system("clear")
-                self.board.display()
-                self.display_combinations(combinations_of_ten)
-
-                # LEGACY
-                # index = input("Select combination: ")  # choose which combination to collect
-                # index = int(index)
+                # CLI display
+                # os.system("clear")
+                # self.board.display()
+                # self.display_combinations(combinations_of_ten)
 
                 agent.get_actions_for_taking(combinations_of_ten)  # agent gets all actions for taking chips
                 action = agent.select_action_randomly()             # selects randomly, returns index of action
@@ -105,7 +112,7 @@ class GameManager:
                         self.remove_chip_from_container(random_index)
                         # if container is empty
                         if len(self.container) == 0:
-                            print("Container became empty while drawing after taking chip from blue tile")
+                            # print("Container became empty while drawing after taking chip from blue tile")
                             end_game_flag = self.is_end_game()
                             if end_game_flag > 0:
                                 self.deal_with_endgame(end_game_flag, turn)
@@ -259,22 +266,29 @@ class GameManager:
         return 0
 
     def deal_with_endgame(self, end_game_flag, turn):
-        self.display_score()
+        # self.display_score()
         if end_game_flag == 1:
-            print("Player1: {} won".format(self.agents[turn].id))
+            # print("Player1: {} won".format(self.agents[turn].id))
+            self.agents[turn].wins += 1
             return
         if end_game_flag == 2:
-            print("Player2: {} won".format(self.agents[turn].id))
+            # print("Player2: {} won".format(self.agents[turn].id))
+            self.agents[turn].wins += 1
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
-                print("Player1: {} won".format(self.agents[turn].id))
+                # print("Player1: {} won".format(self.agents[turn].id))
+                self.agents[0].wins += 1
                 return
             if self.agents[0].score > self.agents[1].score:
-                print("Player2: {} won".format(self.agents[turn].id))
+                # print("Player2: {} won".format(self.agents[turn].id))
+                self.agents[1].wins += 1
                 return
             else:
-                print("Draw")
+                # print("Draw")
+                self.draws += 1
+                return
+
     #############################
 
     # BOARD METHODS
