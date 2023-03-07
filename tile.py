@@ -6,5 +6,3 @@ class Tile:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
-    def get_color(self):
-        return self.color

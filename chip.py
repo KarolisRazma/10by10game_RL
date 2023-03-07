@@ -8,20 +8,3 @@ class Chip:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
-
-    # setters
-    def set_row(self, row):
-        self.row = row
-
-    def set_col(self, col):
-        self.col = col
-
-    # getters
-    def get_row(self):
-        return self.row
-
-    def get_col(self):
-        return self.col
-
-    def get_value(self):
-        return self.value

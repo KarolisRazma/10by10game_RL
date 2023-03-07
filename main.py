@@ -1,18 +1,18 @@
 import environment as e
+import constants3x3 as c3x3
+import constants5x5 as c5x5
 
 # constants
 episodes = 500
 
 # init environment
-env = e.Environment()
+env_3x3 = e.Environment(c3x3.board_border_len, c3x3.container_capacity,
+                        c3x3.chips_types, c3x3.chips_per_type, c3x3.scoring_parameter,
+                        c3x3.score_to_win)
 
 for i in range(episodes):
-    env.start_episode()
+    env_3x3.start_episode()
 
-print("Wins by {}: {}".format(env.agents[0].id, env.agents[0].wins))
-print("Wins by {}: {}".format(env.agents[1].id, env.agents[1].wins))
-print("Draws: {}".format(env.draws))
-
-
-# after 1000 episodes, I got 22423 q-values
-# print(len(env.qtable.q_values))
+print("Wins by {}: {}".format(env_3x3.agents[0].id, env_3x3.agents[0].wins))
+print("Wins by {}: {}".format(env_3x3.agents[1].id, env_3x3.agents[1].wins))
+print("Draws: {}".format(env_3x3.agents[1].draws))

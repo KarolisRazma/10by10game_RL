@@ -21,6 +21,7 @@ class Agent:
         self.chips = []  # current chips in hand
         self.captured_chips = []  # len(chips_captured) = score
         self.wins = 0
+        self.draws = 0
 
     # reset score/chips/captured_chips after episode is complete
     def reset(self):
