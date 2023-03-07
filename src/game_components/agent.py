@@ -3,7 +3,7 @@ import random
 
 
 class Agent:
-    def __init__(self, nickname):
+    def __init__(self, nickname, board_length):
         # there's two ways to implement:
         # 1) give Agent class reference to Board
         # 2) pass board as argument in the function
@@ -14,6 +14,7 @@ class Agent:
         # (2) way fields
         # maybe, I need to store actions as a field ?
         self.actions = []
+        self.board_border_len = board_length
 
         # also copy-paste stuff from Player class
         self.id = nickname
@@ -43,8 +44,8 @@ class Agent:
         # loop over all tiles
         for tile in range(len(game_board.tiles)):
             if game_board.is_tile_empty(tile):
-                tile_row = math.floor(tile / 5)
-                tile_col = tile % 5
+                tile_row = math.floor(tile / self.board_border_len)
+                tile_col = tile % self.board_border_len
                 self.actions.append(PlaceChipAction(tile_row, tile_col, 0))
                 self.actions.append(PlaceChipAction(tile_row, tile_col, 1))  # append another action for other chip
 

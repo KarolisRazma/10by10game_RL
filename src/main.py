@@ -1,9 +1,9 @@
-import environment as e
-import constants3x3 as c3x3
-import constants5x5 as c5x5
+import game_components.environment as e
+import utilities.constants3x3 as c3x3
+import utilities.constants5x5 as c5x5
 
 # constants
-episodes = 500
+episodes = 1
 
 # init environment
 env_3x3 = e.Environment(c3x3.board_border_len, c3x3.container_capacity,

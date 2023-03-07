@@ -1,4 +1,4 @@
-import chip as c
+import src.game_components.chip as c
 
 
 class Container:

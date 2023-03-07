@@ -1,16 +1,16 @@
 # 3x3 board constants
 
 # container constants
-container_capacity = 16
-chips_types = [1, 2, 3, 4]
+container_capacity = 12
+chips_types = [1, 2, 3]
 chips_per_type = 4
 
 # board constants
 board_border_len = 3
 
 # environment constants
-score_to_win = 5
-scoring_parameter = 5
+score_to_win = 4
+scoring_parameter = 4
 
 # for finding combinations to score
 diagonally_start_1 = [0, 1, 3]

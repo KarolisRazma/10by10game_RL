@@ -1,6 +1,6 @@
-import tile as t
-import color as c
-import chip as cp
+import src.game_components.tile as t
+import src.game_components.color as c
+import src.game_components.chip as cp
 
 
 class Board:

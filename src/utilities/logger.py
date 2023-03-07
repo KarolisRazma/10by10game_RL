@@ -3,7 +3,7 @@ import logging
 
 class Logger:
     def __init__(self):
-        logging.basicConfig(filename="log.txt", level=logging.DEBUG,
+        logging.basicConfig(filename="logs/log.txt", level=logging.DEBUG,
                             format="%(asctime)s %(message)s", filemode="w")
         logging.debug("Logger is starting..");
 

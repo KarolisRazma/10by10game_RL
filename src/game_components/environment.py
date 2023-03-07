@@ -1,11 +1,11 @@
-import agent as ag
-import board
-import color as clr
-import constants3x3 as c3x3
-import constants5x5 as c5x5
-import container
+import src.game_components.agent as ag
+import src.game_components.board as board
+import src.game_components.color as clr
+import src.utilities.constants3x3 as c3x3
+import src.utilities.constants5x5 as c5x5
+import src.game_components.container as container
 import random
-import logger
+import src.utilities.logger as logger
 
 
 class Environment:
@@ -23,7 +23,8 @@ class Environment:
         self.container = container.Container(container_capacity, chips_types, chips_per_type)
 
         # create agents
-        self.agents = [ag.Agent("[1] Brute Force Agent"), ag.Agent("[2] Brute Force Agent")]
+        self.agents = [ag.Agent("[1] Brute Force Agent", board_length),
+                       ag.Agent("[2] Brute Force Agent", board_length)]
 
         # draw initial chips, place initial chip on the board
         self.prepare_game()
@@ -194,6 +195,10 @@ class Environment:
         turn = 0
         self.reset()
         while True:
+            self.board.display()
+            print()
+            print("Chips left in container " + str(len(self.container.chips)))
+            print()
             # get index (of chip) and row/col
             # (brute force agent)
             agent = self.agents[turn]  # take agent whose turn it is

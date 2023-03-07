@@ -1,0 +1,4 @@
+2023-03-07 11:58:06,265 Logger is starting..
+2023-03-07 11:58:06,266 game: 0
+2023-03-07 11:58:06,266 agent: [2] Brute Force Agent --- score: 0
+2023-03-07 11:58:06,266 agent: [1] Brute Force Agent --- score: 2
