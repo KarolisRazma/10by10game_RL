@@ -53,9 +53,19 @@ class Board:
             if not self.is_tile_empty(i):
                 self.chips[i] = cp.Chip(0)
 
+    def is_board_full(self):
+        for index in range(self.board_size):
+            if self.is_tile_empty(index):
+                return False
+        return True
+
     def remove_chip(self, index):
         if index < self.board_size:
             self.chips[index] = cp.Chip(0)
+
+    def add_chip(self, index, chip):
+        if index < self.board_size:
+            self.chips[index] = chip
 
     def is_tile_empty(self, index):
         if index < self.board_size:
@@ -86,3 +96,13 @@ class Board:
                 print(chip.value)
             else:
                 print(chip.value, end=" ")
+
+    def board_to_string(self):
+        board = ""
+        for (i, chip) in zip(range(self.board_size), self.chips):
+            if i % self.border_length == self.border_length - 1:
+                board += str(chip.value) + "\n"
+            else:
+                board += str(chip.value) + " "
+        return board
+

@@ -19,6 +19,9 @@ class Environment:
         # create board
         self.board = board.Board(board_length) 
 
+        # graph of states (create new, or load from file)
+        self.graph = []
+
         # create container
         self.container = container.Container(container_capacity, chips_types, chips_per_type)
 
@@ -191,14 +194,16 @@ class Environment:
                 self.agents[1].draws += 1
                 return
 
-    def start_episode(self):
+    def start_episode_without_graph(self):
         turn = 0
         self.reset()
         while True:
-            self.board.display()
-            print()
-            print("Chips left in container " + str(len(self.container.chips)))
-            print()
+            self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
+            self.log.add_log("info", self.board.board_to_string())
+            self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
+            self.log.add_log("info", "--------------------------------------")
+
             # get index (of chip) and row/col
             # (brute force agent)
             agent = self.agents[turn]  # take agent whose turn it is
@@ -213,6 +218,11 @@ class Environment:
             # player/agent place one chip on the board
             self.place_chip_on_board(selected_chip, row, col, self.board.border_length)
 
+            self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "After placing chip:")
+            self.log.add_log("info", self.board.board_to_string())
+            self.log.add_log("info", "--------------------------------------")
+
             combinations = self.get_combinations()  # check if somehow there is value of 10 on the board
 
             # player/agent takes these chips
@@ -221,7 +231,10 @@ class Environment:
                 agent.get_actions_for_taking(combinations)  # agent gets all actions for taking chips
                 action = agent.select_action_randomly()  # selects randomly, returns index of action
                 selected_combination = combinations[action.combination_index]
-
+                self.log.add_log("info", "--------------------------------------")
+                self.log.add_log("info", "Taking from board:")
+                self.log.add_log("info", self.board.board_to_string())
+                self.log.add_log("info", "--------------------------------------")
                 for chip in selected_combination:
                     # tile where the chip belongs
                     tile = self.board.get_tile_at_index(chip.row * self.board.border_length + chip.col)
@@ -244,7 +257,7 @@ class Environment:
                         self.agents[turn].score += 1
                         # from container, do not forget to check if container has chips!
                         # if container is not empty
-                        self.from_container_to_agent(turn, True)
+                        self.from_container_to_agent(turn, is_captured=True)
                         self.agents[turn].score += 1
                         # if container is empty
                         if len(self.container.chips) == 0:
@@ -253,10 +266,12 @@ class Environment:
                                 self.deal_with_endgame(end_game_flag)
                                 break
 
-                        # collect chip normally
-                        if tile.color == clr.Color.WHITE:
-                            self.from_container_to_agent(turn, True)
-                            self.agents[turn].score += 1
+                    # collect chip normally
+                    if tile.color == clr.Color.WHITE:
+                        # from board
+                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                        self.agents[turn].captured_chips.append(chip)
+                        self.agents[turn].score += 1
 
             # draw new chip from the container
             # this if is related to drawing after taking chip from blue tile

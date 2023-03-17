@@ -7,6 +7,7 @@ chips_per_type = 4
 
 # board constants
 board_border_len = 3
+board_size = 9
 
 # environment constants
 score_to_win = 4
