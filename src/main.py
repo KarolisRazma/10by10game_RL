@@ -2,6 +2,21 @@ import game_components.environment as e
 import utilities.constants3x3 as c3x3
 import utilities.constants5x5 as c5x5
 import src.learning_algorithm_parts.graph_generator as gg
+import src.learning_algorithm_parts.graph as gh
+
+# graph = gh.Graph(c3x3.board_size)
+# graph.append_vertex([0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0])
+# graph.append_vertex([0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 2, 0, 0, 0, 0, 0, 0, 0])
+#
+# graph.append_vertex([1, 0, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
+# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
+# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
+# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [0, 2, 3, 0, 0, 0, 0, 0, 0])
+
+#print(graph.is_vertex_found([1, 2, 0, 0, 0, 0, 0, 0, 0]))
+
+#print(graph.root.next_vertexes[0].next_vertexes[0].board_values, graph.root.next_vertexes[1].next_vertexes[0].board_values, graph.root.next_vertexes[1].next_vertexes[1].board_values)
+# print(graph.root.next_vertexes[0].next_vertexes, graph.root.next_vertexes[1].next_vertexes)
 
 # constants
 episodes = 100

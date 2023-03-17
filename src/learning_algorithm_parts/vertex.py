@@ -9,6 +9,12 @@ class Vertex:
     def add_next_vertex(self, vertex):
         self.next_vertexes.append(vertex)
 
+    def is_linked_already(self, vertex):
+        for vx in self.next_vertexes:
+            if vx == vertex:
+                return True
+        return False
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__

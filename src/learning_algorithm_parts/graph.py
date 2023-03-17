@@ -9,6 +9,8 @@ class Graph:
     def create_root(self, board_size):
         self.root = vrt.Vertex([0] * board_size)
 
+    #def store_to_file(self, filename):
+
     def is_vertex_found(self, vertex_values, is_silent=False):  # function for BFS
         visited = []  # List for visited vertex.
         queue = []  # Initialize a queue
@@ -32,5 +34,17 @@ class Graph:
 
     def append_vertex(self, parent_vertex_values, child_vertex_values):
         parent_vertex = self.is_vertex_found(parent_vertex_values, is_silent=True)
-        parent_vertex.next_vertexes.append(vrt.Vertex(child_vertex_values))
+        child_vertex = self.is_vertex_found(child_vertex_values, is_silent=True)
+
+        if not child_vertex:
+            # create new vertex, and append it
+            parent_vertex.next_vertexes.append(vrt.Vertex(child_vertex_values))
+        else:
+            # append existing vertex to parent vertexes list
+            # if it's not already appended
+            if not parent_vertex.is_linked_already(child_vertex):
+                parent_vertex.next_vertexes.append(child_vertex)
+
+
+
 
