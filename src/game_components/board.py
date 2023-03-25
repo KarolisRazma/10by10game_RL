@@ -67,6 +67,11 @@ class Board:
         if index < self.board_size:
             self.chips[index] = chip
 
+    def add_chip_rowcol(self, row, col, chip):
+        chip.row = row
+        chip.col = col
+        self.chips[row * self.border_length + col] = chip
+
     def is_tile_empty(self, index):
         if index < self.board_size:
             if self.chips[index].value == 0:
@@ -106,3 +111,5 @@ class Board:
                 board += str(chip.value) + " "
         return board
 
+    def board_to_chip_values(self):
+        return [chip.value for chip in self.chips]

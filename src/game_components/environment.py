@@ -1,4 +1,5 @@
 import src.game_components.agent as ag
+import src.game_components.new_agent as new_ag
 import src.game_components.board as board
 import src.game_components.color as clr
 import src.utilities.constants3x3 as c3x3
@@ -6,6 +7,7 @@ import src.utilities.constants5x5 as c5x5
 import src.game_components.container as container
 import random
 import src.utilities.logger as logger
+import src.learning_algorithm_parts.graph as gh
 
 
 class Environment:
@@ -16,18 +18,23 @@ class Environment:
     # @param scoring_parameter ==> sum of horizontally/vertically/diagonally arranged chips that enable agent to collect
     # @param score_to_win ==> total points to win a game for agent
     def __init__(self, board_length, container_capacity, chips_types, chips_per_type, scoring_parameter, score_to_win):
-        # create board
-        self.board = board.Board(board_length) 
+        # Create board
+        self.board = board.Board(length=board_length)
 
-        # graph of states (create new, or load from file)
-        self.graph = []
+        # Graph of states (create new, or load from file)
+        self.graph = gh.Graph(board_size=self.board.board_size, chips_types=chips_types)
+        # Current game state, same as board, just converted into vertex
+        self.current_vertex = self.graph.root
 
         # create container
         self.container = container.Container(container_capacity, chips_types, chips_per_type)
 
         # create agents
-        self.agents = [ag.Agent("[1] Brute Force Agent", board_length),
-                       ag.Agent("[2] Brute Force Agent", board_length)]
+        # self.agents = [ag.Agent("[1] Brute Force Agent", board_length),
+        #                ag.Agent("[2] Brute Force Agent", board_length)]
+
+        self.agents = [new_ag.Agent("[1] Brute Force Agent", board_length),
+                       new_ag.Agent("[2] Brute Force Agent", board_length)]
 
         # draw initial chips, place initial chip on the board
         self.prepare_game()
@@ -69,13 +76,16 @@ class Environment:
             self.horizontally_growth = c5x5.horizontally_growth
 
     def reset(self):
-        self.board.clear_chips()  # remove all chips from the board
-        self.container.reset()  # clear and refill the container
-        self.agents[0].reset()  # agent 1 reset score/hand_chips/captured_chips
-        self.agents[1].reset()  # agent 2 reset score/hand_chips/captured_chips
-        self.prepare_game()
+        self.current_vertex = self.graph.root   # set current vertex to graph's root (starting point)
+        self.board.clear_chips()                # remove all chips from the board
+        self.container.reset()                  # clear and refill the container
+        self.agents[0].reset()                  # agent 1 reset score/hand_chips/captured_chips
+        self.agents[1].reset()                  # agent 2 reset score/hand_chips/captured_chips
+        self.prepare_game()                     # game prep method (set initial chips, place first chip, etc)
 
     def prepare_game(self):
+        self.agents[0].current_vertex = self.graph.root
+        self.agents[1].current_vertex = self.graph.root
         self.from_container_to_agent(0)
         self.from_container_to_agent(0)
         self.from_container_to_agent(1)
@@ -98,7 +108,18 @@ class Environment:
             chip_index_in_container = self.get_random_index(len(self.container.chips))
             chip = self.container.draw_chip(chip_index_in_container)
             border_len = self.board.border_length
-            self.place_chip_on_board(chip, int((border_len-1)/2), int((border_len-1)/2), border_len)
+            self.place_chip_on_board(chip, int((border_len - 1) / 2), int((border_len - 1) / 2), border_len)
+
+            # Check if state is in the self.graph
+            # Take random agent
+            if not self.agents[0].is_selected_action_in_current_vertex(self.board):
+                # If actions is not in the self.graph
+                # Then try to append it to current_vertex
+                c_vertex_v = self.board.board_to_chip_values()
+                self.graph.append_vertex_optimized(self.current_vertex, child_vertex=None,
+                                                   child_vertex_values=c_vertex_v)
+            # Updated current_vertex
+            self.current_vertex = self.current_vertex.find_next_vertex(self.board.board_to_chip_values())
         else:
             # TODO add manual first chip placement on the board
             return
@@ -164,7 +185,7 @@ class Environment:
             return 1
         if self.agents[1].score >= self.score_to_win:
             return 2
-        if self.agents[0].score < self.score_to_win and self.agents[1].score < self.score_to_win\
+        if self.agents[0].score < self.score_to_win and self.agents[1].score < self.score_to_win \
                 and not self.container.chips:
             return 3
         return 0
@@ -272,6 +293,142 @@ class Environment:
                         self.board.remove_chip(chip.row * self.board.border_length + chip.col)
                         self.agents[turn].captured_chips.append(chip)
                         self.agents[turn].score += 1
+
+            # draw new chip from the container
+            # this if is related to drawing after taking chip from blue tile
+            if len(self.container.chips) != 0:
+                self.from_container_to_agent(turn)
+            else:
+                break
+
+            # in the end of the round
+            # check for end game conditions
+            end_game_flag = self.is_endgame()
+            if end_game_flag > 0:
+                self.deal_with_endgame(end_game_flag)
+                break
+
+            # next player's/agent's turn
+            turn = 0 if turn == 1 else 1
+
+    def start_episode_with_graph(self):
+        turn = 0
+        self.reset()
+        while True:
+            # Set Agents current vertex accordingly to environment current vertex
+            self.agents[0].current_vertex = self.current_vertex
+            self.agents[1].current_vertex = self.current_vertex
+
+            self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
+            self.log.add_log("info", self.board.board_to_string())
+            self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
+            self.log.add_log("info", "--------------------------------------")
+
+            # Take agent whose turn it is
+            agent = self.agents[turn]
+
+            # Get agent's placing actions
+            agent.get_actions_for_placing(self.board)
+
+            # Get which action agent wants to select (now it works randomly)
+            # Later on this should change, agent should consider weight/value to traverse to other vertex
+            agent_action = agent.select_action_randomly()
+
+            # Parse action into row/col/chip_index
+            row = agent_action.row
+            col = agent_action.col
+            chip_index = agent_action.chip_index
+
+            # Take chip from agent's hand
+            selected_chip = agent.use_chip(chip_index)
+
+            # Agent place one chip on the board
+            self.place_chip_on_board(selected_chip, row, col, self.board.border_length)
+
+            # Check if action selected is in the self.graph
+            if not agent.is_selected_action_in_current_vertex(self.board):
+                # If actions is not in the self.graph
+                # Then try to append it to current_vertex
+                c_vertex_v = self.board.board_to_chip_values()
+                self.graph.append_vertex_optimized(self.current_vertex, child_vertex=None,
+                                                   child_vertex_values=c_vertex_v)
+            # Updated current_vertex
+            self.current_vertex = self.current_vertex.find_next_vertex(self.board.board_to_chip_values())
+
+            self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "After placing chip:")
+            self.log.add_log("info", self.board.board_to_string())
+            self.log.add_log("info", "--------------------------------------")
+
+            # Check if somehow there is value of constantsnxn.scoring_parameter on the board
+            combinations = self.get_combinations()
+
+            # Agent takes these chips
+            # Except the one placed this round
+            if combinations:
+                # Get all actions for taking chips
+                agent.get_actions_for_taking(combinations)
+
+                # Get which action agent wants to select (now it works randomly)
+                # Later on this should change, agent should consider weight/value to traverse to other vertex
+                action = agent.select_action_randomly()
+
+                # Get specific combination (chips list)
+                selected_combination = combinations[action.combination_index]
+
+                self.log.add_log("info", "--------------------------------------")
+                self.log.add_log("info", "Taking from board:")
+                self.log.add_log("info", self.board.board_to_string())
+                self.log.add_log("info", "--------------------------------------")
+
+                for chip in selected_combination:
+                    # Tile where the chip belongs
+                    tile = self.board.get_tile_at_index(chip.row * self.board.border_length + chip.col)
+
+                    # if it's the same chip that was placed this round, player/agent can't take it
+                    if row == chip.row and col == chip.col:
+                        continue
+
+                    # return to container
+                    if tile.color == clr.Color.RED:
+                        self.container.chips.append(chip)
+                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+
+                    # take a chip from board
+                    # and collect one more from the container
+                    if tile.color == clr.Color.BLUE:
+                        # from board
+                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                        self.agents[turn].captured_chips.append(chip)
+                        self.agents[turn].score += 1
+                        # from container, do not forget to check if container has chips!
+                        # if container is not empty
+                        self.from_container_to_agent(turn, is_captured=True)
+                        self.agents[turn].score += 1
+                        # if container is empty
+                        if len(self.container.chips) == 0:
+                            end_game_flag = self.is_endgame()
+                            if end_game_flag > 0:
+                                self.deal_with_endgame(end_game_flag)
+                                break
+
+                    # collect chip normally
+                    if tile.color == clr.Color.WHITE:
+                        # from board
+                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                        self.agents[turn].captured_chips.append(chip)
+                        self.agents[turn].score += 1
+
+                # Check if action selected is in the self.graph
+                if not agent.is_selected_action_in_current_vertex(self.board):
+                    # If actions is not in the self.graph
+                    # Then try to append it to current_vertex
+                    c_vertex_v = self.board.board_to_chip_values()
+                    self.graph.append_vertex_optimized(self.current_vertex, child_vertex=None,
+                                                       child_vertex_values=c_vertex_v)
+                # Updated current_vertex
+                self.current_vertex = self.current_vertex.find_next_vertex(self.board.board_to_chip_values())
 
             # draw new chip from the container
             # this if is related to drawing after taking chip from blue tile

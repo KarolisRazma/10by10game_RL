@@ -48,9 +48,9 @@ class GraphGenerator:
 
             # THE BOARD CHANGES
             child_vertex_values = self.transform_board_to_vertex_values()
-            if not self.graph.is_vertex_found(vertex_values=child_vertex_values, is_silent=True):
-                self.graph.append_vertex(parent_vertex_values=parent_vertex_values,
-                                         child_vertex_values=child_vertex_values)
+
+            # APPEND TO VERTEX TO THE GRAPH
+            self.graph.append_vertex(parent_vertex_values, child_vertex_values)
 
             # AGENT DRAWS CHIP FROM CONTAINER
             self.from_container_to_agent()

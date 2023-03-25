@@ -3,42 +3,21 @@ import utilities.constants3x3 as c3x3
 import utilities.constants5x5 as c5x5
 import src.learning_algorithm_parts.graph_generator as gg
 import src.learning_algorithm_parts.graph as gh
-
-# graph = gh.Graph(c3x3.board_size)
-# graph.append_vertex([0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0, 0])
-# graph.append_vertex([0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 2, 0, 0, 0, 0, 0, 0, 0])
-#
-# graph.append_vertex([1, 0, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
-# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
-# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [1, 2, 0, 0, 0, 0, 0, 0, 0])
-# graph.append_vertex([0, 2, 0, 0, 0, 0, 0, 0, 0], [0, 2, 3, 0, 0, 0, 0, 0, 0])
-
-#print(graph.is_vertex_found([1, 2, 0, 0, 0, 0, 0, 0, 0]))
-
-#print(graph.root.next_vertexes[0].next_vertexes[0].board_values, graph.root.next_vertexes[1].next_vertexes[0].board_values, graph.root.next_vertexes[1].next_vertexes[1].board_values)
-# print(graph.root.next_vertexes[0].next_vertexes, graph.root.next_vertexes[1].next_vertexes)
+import utilities.util_funcs as util
+import time
 
 # constants
-episodes = 100
+episodes = 10
 
-g_generator = gg.GraphGenerator(c3x3.board_border_len, c3x3.container_capacity, c3x3.chips_types, c3x3.chips_per_type)
-g_generator.simulate()
+env = e.Environment(c3x3.board_border_len, c3x3.container_capacity,
+                    c3x3.chips_types, c3x3.chips_per_type, c3x3.scoring_parameter,
+                    c3x3.score_to_win)
 
+start = time.time()
 for i in range(episodes):
-    g_generator.simulate()
+    env.start_episode_with_graph()
+end = time.time()
 
-g_generator.graph.is_vertex_found([0,0,0,0,1,0,0,0,0])
+print(f'Time elapsed: {end - start}')
 
-
-#
-# # init environment
-# env_3x3 = e.Environment(c3x3.board_border_len, c3x3.container_capacity,
-#                         c3x3.chips_types, c3x3.chips_per_type, c3x3.scoring_parameter,
-#                         c3x3.score_to_win)
-#
-# for i in range(episodes):
-#     env_3x3.start_episode_without_graph()
-#
-# print("Wins by {}: {}".format(env_3x3.agents[0].id, env_3x3.agents[0].wins))
-# print("Wins by {}: {}".format(env_3x3.agents[1].id, env_3x3.agents[1].wins))
-# print("Draws: {}".format(env_3x3.agents[1].draws))
+env.graph.store_to_file('environment_created_graph3.txt')

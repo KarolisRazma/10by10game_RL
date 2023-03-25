@@ -4,14 +4,21 @@ class Vertex:
     # @field next_vertexes => list of references to next vertex
     def __init__(self, board_values):
         self.board_values = board_values
+        self.value = 0
         self.next_vertexes = []
 
     def add_next_vertex(self, vertex):
         self.next_vertexes.append(vertex)
 
+    def find_next_vertex(self, vertex_values):
+        for vx in self.next_vertexes:
+            if vx.board_values == vertex_values:
+                return vx
+        return None
+
     def is_linked_already(self, vertex):
         for vx in self.next_vertexes:
-            if vx == vertex:
+            if vx.board_values == vertex.board_values:
                 return True
         return False
 

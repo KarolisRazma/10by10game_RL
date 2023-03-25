@@ -1,0 +1,23 @@
+Agento naudojimasis grafu ir grafo pildymas:
+
+    agentas generuoja visus actionus is pozicijos ir prideda (visus ar tik viena nauja pasikeitima ?)
+    jei to pasikeitimo nera grafe
+    agentas pasirenka atlikti ejima is grafo atsitiktinai, bet atsizvelgiant i savo turimus chips
+
+
+grafo generavimo optimizavimas:
+
+    grafo pradzia:
+    root [000] --> [001] [010] [100] [002] [020] [200] [003] [030] [300]
+
+    reikia bandyti isiminti visa kelia, kaip buvo atliekamas esamas episodas, taip atmetineti, nereikalingas virsunes.
+    capture'iname lentos busena pries dedant nauja chipa.
+    pradzia --> board_prev_states = [000]
+    atliekame veiksma [001]
+    atliekame ciklo veiksmus
+    baigiame iteracija
+
+    pridedame praeita veiksma --> board_prev_states = [000, 001]
+    kaip pasinaudoti board_prev_states?
+
+
