@@ -7,7 +7,7 @@ import src.learning_algorithm_parts.graph as gh
 import utilities.util_funcs as util
 
 # constants
-episodes = 0
+episodes = 10
 
 if __name__ == "__main__":
     g = gh.Graph()

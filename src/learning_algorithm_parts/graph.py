@@ -1,5 +1,5 @@
 from neo4j import GraphDatabase
-import src.game_components.agent as na
+import src.game_components.actions.placing_action as pan
 
 # Database Credentials
 uri = "bolt://localhost:7687"
@@ -90,7 +90,7 @@ class Graph:
             row = int(record['r.row'])
             col = int(record['r.col'])
             value = int(record['r.value'])
-            return na.PlaceChipAction(row, col, value)
+            return pan.PlaceChipAction(row, col, value)
         if action_type == "taking":
             result = self.session.run(
                 """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
