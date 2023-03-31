@@ -2,8 +2,8 @@ import logging
 
 
 class Logger:
-    def __init__(self):
-        logging.basicConfig(filename="logs/log.txt", level=logging.DEBUG,
+    def __init__(self, filename):
+        logging.basicConfig(filename="logs/{}".format(filename), level=logging.DEBUG,
                             format="%(message)s", filemode="w")
         logging.debug("Logger is starting..")
 

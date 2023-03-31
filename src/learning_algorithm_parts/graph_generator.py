@@ -7,6 +7,7 @@ import src.utilities.util_funcs as util
 import copy
 
 
+# DEPRECATED // NOT USING THIS ANYMORE
 class GraphGenerator:
     def __init__(self, board_length, container_cap, c_types, c_per_type):
         # Create initial board, container, agent, graph

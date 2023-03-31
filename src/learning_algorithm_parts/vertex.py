@@ -1,3 +1,5 @@
+
+# DEPRECATED // NOT USING THIS ANYMORE
 class Vertex:
     # @param board_values => list of chips values, that are on the board,
     # e.g. [1,0,2,3,1,2,1,0,0]

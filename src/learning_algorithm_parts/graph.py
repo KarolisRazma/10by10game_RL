@@ -1,109 +1,127 @@
-import src.learning_algorithm_parts.vertex as vrt
-import src.utilities.util_funcs as util
+from neo4j import GraphDatabase
+import src.game_components.agent as na
+
+# Database Credentials
+uri = "bolt://localhost:7687"
+userName = "neo4j"
+password = "password"
 
 
 class Graph:
-    def __init__(self, board_size, chips_types):
-        self.root = None
-        self.create_root(board_size, chips_types)
+    def __init__(self):
+        self.driver = GraphDatabase.driver(uri, auth=(userName, password))
+        self.driver.verify_connectivity()
+        self.session = self.driver.session()
 
-    def create_root(self, board_size, chips_types):
-        self.root = vrt.Vertex([0] * board_size)
-        # for chip_value in chips_types:
-        #     chips_values_list = [0] * board_size
-        #     chips_values_list[int((board_size-1) / 2)] = chip_value
-        #     self.root.next_vertexes.append(vrt.Vertex(chips_values_list))
+    # ADD NEW VERTICES
+    def add_n_board_states(self, current_state_values, next_state_values_list, action_type, actions):
+        for (next_state_values, action) in zip(next_state_values_list, actions):
+            self.add_board_state(current_state_values, next_state_values, action_type, action)
 
-    # @param filename => filename that holds graph data
-    def store_to_file(self, filename):
-        with open(filename, 'w') as f:
-            visited = []  # List for visited vertex.
-            queue = []  # Initialize a queue
-            visited.append(self.root)
-            queue.append(self.root)
+    def add_board_state(self, current_state_values, next_state_values, action_type, action):
+        # Create vertex
+        result = self.session.run(
+            "MERGE (:BoardState {board_values: $board_values})",
+            board_values=next_state_values
+        )
 
-            while queue:  # Creating loop to visit each vertex
-                vertex_popped = queue.pop(0)
-                vertex_board_values = util.vertex_values_to_string(vertex_popped.board_values)
-                next_vertexes_board_values = []
-                for neighbour in vertex_popped.next_vertexes:
-                    next_vertexes_board_values.append(util.vertex_values_to_string(neighbour.board_values))
-                    if neighbour not in visited:
-                        visited.append(neighbour)
-                        queue.append(neighbour)
-
-                # Writing vertex and it's children to file
-                f.write(vertex_board_values)
-                for child_value in next_vertexes_board_values:
-                    f.write(child_value)
-                f.write('---\n')
-
-    # @param filename => filename that holds graph data
-    def load_from_file(self, filename):
-        with open(filename, 'r') as f:
-            # Read root and assign to self.root
-            root_values = util.string_to_vertex_values(f.readline())
-            self.root = vrt.Vertex(root_values)
-
-            # Flag to identify when it's time to pick up next vertex
-            take_next_vertex = False
-            current_vertex = self.root
-            for line in f:
-                if line == "---\n":
-                    take_next_vertex = True
-                    continue
-                if take_next_vertex:
-                    current_vertex = self.find_vertex(util.string_to_vertex_values(line))
-                    take_next_vertex = False
-                    continue
-                self.append_vertex_optimized(current_vertex, None, util.string_to_vertex_values(line))
-
-    def find_vertex(self, vertex_values, is_silent=False):  # function for BFS
-        visited = []  # List for visited vertex.
-        queue = []  # Initialize a queue
-        visited.append(self.root)
-        queue.append(self.root)
-
-        while queue:  # Creating loop to visit each vertex
-            vertex_popped = queue.pop(0)
-            if not is_silent:
-                print(vertex_popped.board_values)
-
-            # if [board_values] == [board_values]
-            if vertex_values == vertex_popped.board_values:
-                return vertex_popped
-
-            for neighbour in vertex_popped.next_vertexes:
-                if neighbour not in visited:
-                    visited.append(neighbour)
-                    queue.append(neighbour)
-        return None
-
-    def append_vertex(self, parent_vertex_values, child_vertex_values):
-        parent_vertex = self.find_vertex(parent_vertex_values, is_silent=True)
-        child_vertex = self.find_vertex(child_vertex_values, is_silent=True)
-
-        if parent_vertex is not None:
-            if child_vertex is None:
-                # create new vertex and append it
-                parent_vertex.next_vertexes.append(vrt.Vertex(child_vertex_values))
+        # If not root element
+        if current_state_values is not None:
+            # Create relation for placing
+            if action_type == "placing":
+                result = self.session.run(
+                    """ MATCH (curr:BoardState {board_values: $c_board_values})
+                        MERGE (next:BoardState {board_values: $n_board_values})
+                        MERGE (curr)-[:NEXT {action_type: $action_type, row: $row, col: $col, value: $value}]->(next) 
+                    """, c_board_values=current_state_values, n_board_values=next_state_values, action_type=action_type,
+                    row=action.row, col=action.col, value=action.value
+                )
+            # Create relation for taking
             else:
-                # append existing vertex to parent vertexes list
-                # if it's not already appended
-                if not parent_vertex.is_linked_already(child_vertex):
-                    parent_vertex.next_vertexes.append(child_vertex)
+                updated_action = []
+                for chip in action:
+                    updated_action.append(chip.value)
+                    updated_action.append(chip.row)
+                    updated_action.append(chip.col)
+                result = self.session.run(
+                    """ MATCH (curr:BoardState {board_values: $c_board_values})
+                        MERGE (next:BoardState {board_values: $n_board_values})
+                        MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination}]->(next) 
+                    """, c_board_values=current_state_values, n_board_values=next_state_values,
+                    action_type=action_type, combination=updated_action
+                )
 
-    # TODO optimize appending to graph? (How to optimize it?)
-    def append_vertex_optimized(self, parent_vertex, child_vertex, child_vertex_values):
-        # If child vertex is not given
-        if child_vertex is None:
-            child_vertex = self.find_vertex(child_vertex_values, is_silent=True)
-            if child_vertex is None:
-                # Create new child vertex
-                child_vertex = vrt.Vertex(child_vertex_values)
+    # GET VERTEX
+    def find_board_state(self, board_values):
+        result = self.session.run(
+            """ MATCH (boardState:BoardState)
+                WHERE boardState.board_values = $board_values
+                RETURN boardState 
+            """, board_values=board_values
+        )
+        record = result.single(strict=True)
+        return record
 
-        # append existing child vertex to parent vertexes list
-        # if it's not already appended
-        if not parent_vertex.is_linked_already(child_vertex):
-            parent_vertex.next_vertexes.append(child_vertex)
+    # GET GIVEN VERTEX NEXT VERTICES
+    def find_board_state_next_vertices(self, parent_state_values):
+        result = self.session.run(
+            """ MATCH (parentState:BoardState)-[:NEXT]->(childState:BoardState)
+                WHERE parentState.board_values = $parent_state_values
+                RETURN childState
+            """, parent_state_values=parent_state_values
+        )
+        records = list(result)
+        # Parse records to list of ints
+        updated_records = []
+        for record in records:
+            updated_records.append(record.data()['childState']['board_values'])
+        return updated_records
 
+    # GET ACTION FROM PARENT TO CHILD VERTEX
+    def find_next_action(self, parent_state_values, child_state_values, action_type):
+        if action_type == "placing":
+            result = self.session.run(
+                """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
+                    WHERE parentState.board_values = $parent_state_values AND childState.board_values = $child_state_values
+                    RETURN r.row, r.col, r.value
+                """, parent_state_values=parent_state_values, child_state_values=child_state_values
+            )
+            record = result.single(strict=True).data()
+            row = int(record['r.row'])
+            col = int(record['r.col'])
+            value = int(record['r.value'])
+            return na.PlaceChipAction(row, col, value)
+        if action_type == "taking":
+            result = self.session.run(
+                """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
+                    WHERE parentState.board_values = $parent_state_values AND childState.board_values = $child_state_values
+                    RETURN r.combination
+                """, parent_state_values=parent_state_values, child_state_values=child_state_values
+            )
+            record = result.single(strict=True).data()
+            combination = record['r.combination']
+            # RETURNS list of chips row/col/value to remove
+            return combination
+
+    # RETURNS BOARD VALUES OF ALL VERTICES
+    def get_everything(self):
+        result = self.session.run("MATCH (bs:BoardState) RETURN bs.board_values AS board_values")
+        records = list(result)  # a list of Record objects
+        return records
+
+    # RETURNS TRUE IF VERTEX IS FOUND
+    def is_vertex_found(self, board_values):
+        result = self.session.run(
+            """ MATCH (boardState:BoardState {board_values: $board_values})
+                WITH COUNT(boardState) > 0  as node_exists
+                RETURN node_exists
+            """, board_values=board_values
+        )
+        return result.single(strict=True).data()['node_exists']
+
+    # DELETE ENTIRE DB
+    def delete_everything(self):
+        query_1 = """ MATCH (a) -[r] -> () DELETE a, r """
+        query_2 = """ MATCH (a) DELETE a """
+        self.session.run(query_1)
+        self.session.run(query_2)

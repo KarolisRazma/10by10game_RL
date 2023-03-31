@@ -1,22 +1,27 @@
+import copy
 import math
 import random
+import src.learning_algorithm_parts.vertex as vrt
+import src.game_components.actions.placing_action as pan
+import src.game_components.actions.taking_action as tan
+import src.game_components.chip as cp
 
 
 class Agent:
-    def __init__(self, nickname, board_length):
-        # there's two ways to implement:
-        # 1) give Agent class reference to Board
-        # 2) pass board as argument in the function
+    def __init__(self, nickname, board_len):
+        # Agent's current vertex
+        self.current_vertex = None
 
-        # (1) here, but sticking to (2) way, implemented below
-        # self.board = game_board  # same instance as in GameManager
+        # Board border length constant
+        self.board_border_len = board_len
 
-        # (2) way fields
-        # maybe, I need to store actions as a field ?
+        # Agent's possible actions at given position
         self.actions = []
-        self.board_border_len = board_length
 
-        # also copy-paste stuff from Player class
+        # Next possible vertexes
+        self.next_vertexes = []
+
+        # Agent stuff
         self.id = nickname
         self.score = 0
         self.chips = []  # current chips in hand
@@ -30,7 +35,6 @@ class Agent:
         self.chips = []
         self.captured_chips = []
 
-    # same function from class Player
     # returns used chip and deletes it from agent's inventory
     def use_chip(self, chip_index):
         chip = self.chips[chip_index]
@@ -46,8 +50,8 @@ class Agent:
             if game_board.is_tile_empty(tile):
                 tile_row = math.floor(tile / self.board_border_len)
                 tile_col = tile % self.board_border_len
-                self.actions.append(PlaceChipAction(tile_row, tile_col, 0))
-                self.actions.append(PlaceChipAction(tile_row, tile_col, 1))  # append another action for other chip
+                self.actions.append(pan.PlaceChipAction(tile_row, tile_col, self.chips[0].value))
+                self.actions.append(pan.PlaceChipAction(tile_row, tile_col, self.chips[1].value))
 
     # parameter combinations is list made in class GameManager
     def get_actions_for_taking(self, combinations):
@@ -55,30 +59,81 @@ class Agent:
 
         # loop over all combinations
         for combination in range(len(combinations)):
-            self.actions.append(TakeChipsAction(combination))
+            self.actions.append(tan.TakeChipsAction(combination))
 
+    # Returns true if vertex is already in the graph
+    def is_selected_action_in_current_vertex(self, game_board):
+        new_position = game_board.board_to_chip_values()
+        vertex_new_position = vrt.Vertex(new_position)
+        return self.current_vertex.is_linked_already(vertex_new_position)
+
+    def convert_placing_actions_to_board_states(self, game_board):
+        board_states = []
+        for action in self.actions:
+            game_board_copy = copy.deepcopy(game_board)
+            game_board_copy.add_chip_rowcol(action.row, action.col, cp.Chip(action.value))
+            board_states.append(game_board_copy.board_to_chip_values())
+        return board_states
+
+    @staticmethod
+    def convert_taking_actions_to_board_states(game_board, combinations, chip_placed_row, chip_placed_col):
+        board_states = []
+        for combination in combinations:
+            game_board_copy = copy.deepcopy(game_board)
+            for chip in combination:
+                # If it's the same chip that was placed this round, agent can't take it
+                if chip_placed_row == chip.row and chip_placed_col == chip.col:
+                    continue
+                game_board_copy.remove_chip(chip.row * game_board_copy.border_length + chip.col)
+            board_states.append(game_board_copy.board_to_chip_values())
+        return board_states
+
+    # Returns next possible vertexes according to available actions
+    # Updates self.actions according to next_vertexes
+    def get_next_vertexes_placing(self, game_board):
+        updated_actions = []
+        self.next_vertexes = []
+        for action in self.actions:
+            game_board_copy = copy.deepcopy(game_board)
+            game_board_copy.add_chip_rowcol(action.row, action.col, self.chips[action.chip_index])
+            # What if null?
+            next_vertex = self.current_vertex.find_next_vertex(game_board_copy.board_to_chip_values())
+            if next_vertex is not None:
+                self.next_vertexes.append(next_vertex)
+                updated_actions.append(action)
+        self.actions = updated_actions
+
+    def get_next_vertexes_taking(self, game_board, combinations, chip_placed_row, chip_placed_col):
+        updated_actions = []
+        self.next_vertexes = []
+        for (action, combination) in zip(self.actions, combinations):
+            game_board_copy = copy.deepcopy(game_board)
+            for chip in combination:
+                # If it's the same chip that was placed this round, agent can't take it
+                if chip_placed_row == chip.row and chip_placed_col == chip.col:
+                    continue
+                game_board_copy.remove_chip(chip.row * game_board_copy.border_length + chip.col)
+            # What if null?
+            next_vertex = self.current_vertex.find_next_vertex(game_board_copy.board_to_chip_values())
+            if next_vertex is not None:
+                self.next_vertexes.append(next_vertex)
+                updated_actions.append(action)
+        self.actions = updated_actions
+
+    # Returns random next vertex board values
+    @staticmethod
+    def select_next_vertex_randomly(next_vertices):
+        random_index = random.randint(0, len(next_vertices) - 1)
+        return next_vertices[random_index]
+
+    # Returns random action from actions list
     def select_action_randomly(self):
-        random_index = random.randint(0, len(self.actions)-1)
+        random_index = random.randint(0, len(self.actions) - 1)
         return self.actions[random_index]
 
-
-# defining short class PlaceChipAction for the Agent class
-# its purpose is to represent agent's action to place chip on the board
-class PlaceChipAction:
-    def __init__(self, row, col, chip_index):
-        self.row = row
-        self.col = col
-        self.chip_index = chip_index
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-
-# defining short class TakeChipsAction for the Agent class
-# its purpose is to represent agent's action to take chips from the board
-class TakeChipsAction:
-    def __init__(self, combination_index):
-        self.combination_index = combination_index
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    # Returns random action from actions list
+    # And random next vertex from next vertices list
+    # In a list form [0] is action, [1] is next_vertex
+    def select_action_and_next_vertex_randomly(self, next_vertices):
+        random_index = random.randint(0, len(self.actions) - 1)
+        return [self.actions[random_index], next_vertices[random_index]]
