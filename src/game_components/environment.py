@@ -30,7 +30,7 @@ class Environment:
 
         # Create root vertex if it's not found
         if not self.graph.is_vertex_found(self.board.board_to_chip_values()):
-            self.graph.add_board_state(None, [0] * self.board.board_size, None, None)
+            self.graph.add_board_state(None, [0] * self.board.board_size, None, None, None)
 
         # Current game state, same as board,
         # just converted into list of chip values
@@ -117,7 +117,7 @@ class Environment:
 
         # Add next state to root
         self.graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(), 'placing',
-                                   pan.PlaceChipAction(chip.row, chip.col, chip.value))
+                                   pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
         # Update environment current state
         self.environment_current_state = self.board.board_to_chip_values()
 
@@ -341,7 +341,7 @@ class Environment:
             next_board_states = agent.convert_placing_actions_to_board_states(self.board)
             # Update graph with next board states
             self.graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                          action_type='placing', actions=agent.actions)
+                                          action_type='placing', actions=agent.actions, placed_chip=None)
 
             # Get nodes from database
             vertices = self.graph.find_board_state_next_vertices(self.environment_current_state)
@@ -359,7 +359,7 @@ class Environment:
             selected_vertex = vertices[random_index]
 
             # Get action from this vertex
-            action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'placing')
+            action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'placing', self.board)
 
             # Parse action into row/col/chip_index
             row = action.row
@@ -395,10 +395,14 @@ class Environment:
                 # Get all actions for taking chips
                 agent.get_actions_for_taking(combinations)
 
+                # Store chip info (row, col, value) in a list
+                placed_chip_info = [row, col, value]
+
                 # Get next board states from agent's placing actions
                 next_board_states = agent.convert_taking_actions_to_board_states(self.board, combinations, row, col)
                 # Update graph with next board states
-                self.graph.add_n_board_states(self.environment_current_state, next_board_states, 'taking', combinations)
+                self.graph.add_n_board_states(self.environment_current_state, next_board_states,
+                                              'taking', combinations, placed_chip_info)
 
                 # Get nodes from database
                 vertices = self.graph.find_board_state_next_vertices(self.environment_current_state)
@@ -416,7 +420,7 @@ class Environment:
                 selected_vertex = vertices[random_index]
 
                 # Get action from this vertex
-                action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking')
+                action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking', self.board)
 
                 # Change value parameters_counter if more parametres are included in relationship NEXT
                 parameters_counter = 3
@@ -424,9 +428,9 @@ class Environment:
                 # Create combination from action
                 selected_combination = []
                 for i in range(time_iterate):
-                    com_chip = cp.Chip(action[3*i+0])
-                    com_chip.row = action[3*i+1]
-                    com_chip.col = action[3*i+2]
+                    com_chip = cp.Chip(action[3*i+2])
+                    com_chip.row = action[3*i+0]
+                    com_chip.col = action[3*i+1]
                     selected_combination.append(com_chip)
 
                 # TODO logging seperately

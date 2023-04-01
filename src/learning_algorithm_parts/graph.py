@@ -14,11 +14,11 @@ class Graph:
         self.session = self.driver.session()
 
     # ADD NEW VERTICES
-    def add_n_board_states(self, current_state_values, next_state_values_list, action_type, actions):
+    def add_n_board_states(self, current_state_values, next_state_values_list, action_type, actions, placed_chip):
         for (next_state_values, action) in zip(next_state_values_list, actions):
-            self.add_board_state(current_state_values, next_state_values, action_type, action)
+            self.add_board_state(current_state_values, next_state_values, action_type, action, placed_chip)
 
-    def add_board_state(self, current_state_values, next_state_values, action_type, action):
+    def add_board_state(self, current_state_values, next_state_values, action_type, action, placed_chip):
         # Create vertex
         result = self.session.run(
             "MERGE (:BoardState {board_values: $board_values})",
@@ -40,15 +40,16 @@ class Graph:
             else:
                 updated_action = []
                 for chip in action:
-                    updated_action.append(chip.value)
                     updated_action.append(chip.row)
                     updated_action.append(chip.col)
+                    updated_action.append(chip.value)
+
                 result = self.session.run(
                     """ MATCH (curr:BoardState {board_values: $c_board_values})
                         MERGE (next:BoardState {board_values: $n_board_values})
-                        MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination}]->(next) 
+                        MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination, placed_chip: $placed_chip}]->(next) 
                     """, c_board_values=current_state_values, n_board_values=next_state_values,
-                    action_type=action_type, combination=updated_action
+                    action_type=action_type, combination=updated_action, placed_chip=placed_chip
                 )
 
     # GET VERTEX
@@ -78,7 +79,7 @@ class Graph:
         return updated_records
 
     # GET ACTION FROM PARENT TO CHILD VERTEX
-    def find_next_action(self, parent_state_values, child_state_values, action_type):
+    def find_next_action(self, parent_state_values, child_state_values, action_type, board):
         if action_type == "placing":
             result = self.session.run(
                 """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
@@ -98,9 +99,19 @@ class Graph:
                     RETURN r.combination
                 """, parent_state_values=parent_state_values, child_state_values=child_state_values
             )
-            record = result.single(strict=True).data()
-            combination = record['r.combination']
+            # record = result.single(strict=True).data()
+            # combination = record['r.combination']
             # RETURNS list of chips row/col/value to remove
+
+            records = list(result)
+            if len(records) > 1:
+                print(f'Before: {parent_state_values}')
+                print(f'After: {child_state_values}')
+                print("Comb")
+                for record in records:
+                    print(record.data()['r.combination'])
+            combination = records[0].data()['r.combination']
+
             return combination
 
     # RETURNS BOARD VALUES OF ALL VERTICES

@@ -6,11 +6,16 @@ import src.utilities.constants3x3 as c3x3
 import src.learning_algorithm_parts.graph as gh
 import utilities.util_funcs as util
 
+# 100 episodes -> 38.22 seconds
+# nodes generated 5320
+
 # constants
-episodes = 10
+episodes = 100
 
 if __name__ == "__main__":
     g = gh.Graph()
+
+    # g.delete_everything()
 
     env = e.Environment(c3x3.board_border_len, c3x3.container_capacity,
                         c3x3.chips_types, c3x3.chips_per_type, c3x3.scoring_parameter,
