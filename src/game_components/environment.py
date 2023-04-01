@@ -47,7 +47,7 @@ class Environment:
         self.prepare_game()
 
         # Create instance of logger
-        # self.log = logger.Logger("logs.txt")
+        self.log = logger.Logger("logs.txt")
 
         # Count episodes played
         self.episodes = 0
@@ -126,7 +126,7 @@ class Environment:
         chip.col = column
         self.board.chips[row * border_length + column] = chip
 
-    def get_combinations(self):
+    def get_combinations(self, chip_placed):
         combinations = []
         combinations += self.find_collectable_chips(self.diagonally_start_1,
                                                     self.diagonally_end_1,
@@ -140,7 +140,13 @@ class Environment:
         combinations += self.find_collectable_chips(self.horizontally_start,
                                                     self.horizontally_end,
                                                     self.horizontally_growth)
-        return combinations
+
+        # filter combinations (viable combinations are those, that contains placed chip)
+        updated_combinations = []
+        for combination in combinations:
+            if chip_placed in combination:
+                updated_combinations.append(combination)
+        return updated_combinations
 
     def find_collectable_chips(self, indexes_start, indexes_end, index_growth):
         combinations = []
@@ -188,7 +194,7 @@ class Environment:
         return 0
 
     def deal_with_endgame(self, end_game_flag):
-        # self.log_endgame_info()
+        self.log_endgame_info()
         # Increment episodes counter
         self.episodes += 1
         if end_game_flag == 1:
@@ -209,17 +215,17 @@ class Environment:
                 self.agents[1].draws += 1
                 return
 
-    # def log_turn_start(self, turn):
-    #     self.log.add_log("info", "--------------------------------------")
-    #     self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
-    #     self.log.add_log("info", self.board.board_to_string())
-    #     self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
-    #     self.log.add_log("info", "--------------------------------------")
+    def log_turn_start(self, turn):
+        self.log.add_log("info", "--------------------------------------")
+        self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
+        self.log.add_log("info", self.board.board_to_string())
+        self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
+        self.log.add_log("info", "--------------------------------------")
 
-    # def log_endgame_info(self):
-    #     self.log.add_log("info", "game: {}".format(self.episodes))
-    #     self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].id, self.agents[0].score))
-    #     self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].id, self.agents[1].score))
+    def log_endgame_info(self):
+        self.log.add_log("info", "game: {}".format(self.episodes))
+        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].id, self.agents[0].score))
+        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].id, self.agents[1].score))
 
     # DEPRECATED, WON'T WORK, NEED TO ADAPT TO NEW ACTIONS
     def start_episode_without_graph(self):
@@ -329,7 +335,7 @@ class Environment:
             self.agents[1].current_vertex = self.environment_current_state.copy()
 
             # Log start of the turn
-            # self.log_turn_start(turn)
+            self.log_turn_start(turn)
 
             # Take agent whose turn it is
             agent = self.agents[turn]
@@ -359,7 +365,8 @@ class Environment:
             selected_vertex = vertices[random_index]
 
             # Get action from this vertex
-            action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'placing', self.board)
+            action = self.graph.find_next_action(self.environment_current_state, selected_vertex,
+                                                 'placing', self.board, placed_chip=None)
 
             # Parse action into row/col/chip_index
             row = action.row
@@ -381,13 +388,13 @@ class Environment:
             self.agents[1].current_vertex = self.environment_current_state.copy()
 
             # TODO logging seperately
-            # self.log.add_log("info", "--------------------------------------")
-            # self.log.add_log("info", "After placing chip:")
-            # self.log.add_log("info", self.board.board_to_string())
-            # self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "--------------------------------------")
+            self.log.add_log("info", "After placing chip:")
+            self.log.add_log("info", self.board.board_to_string())
+            self.log.add_log("info", "--------------------------------------")
 
             # Check if somehow there is value of constantsnxn.scoring_parameter on the board
-            combinations = self.get_combinations()
+            combinations = self.get_combinations(self.board.get_chip_at_index(row * self.board.border_length + col))
 
             # Agent takes these chips
             # Except the one placed this round
@@ -420,7 +427,8 @@ class Environment:
                 selected_vertex = vertices[random_index]
 
                 # Get action from this vertex
-                action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking', self.board)
+                action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking',
+                                                     self.board, placed_chip=placed_chip_info)
 
                 # Change value parameters_counter if more parametres are included in relationship NEXT
                 parameters_counter = 3
@@ -434,10 +442,10 @@ class Environment:
                     selected_combination.append(com_chip)
 
                 # TODO logging seperately
-                # self.log.add_log("info", "--------------------------------------")
-                # self.log.add_log("info", "Taking from board:")
-                # self.log.add_log("info", self.board.board_to_string())
-                # self.log.add_log("info", "--------------------------------------")
+                self.log.add_log("info", "--------------------------------------")
+                self.log.add_log("info", "Taking from board:")
+                self.log.add_log("info", self.board.board_to_string())
+                self.log.add_log("info", "--------------------------------------")
 
                 for chip in selected_combination:
                     # Tile where the chip belongs

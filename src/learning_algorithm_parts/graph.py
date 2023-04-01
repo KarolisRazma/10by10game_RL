@@ -79,7 +79,7 @@ class Graph:
         return updated_records
 
     # GET ACTION FROM PARENT TO CHILD VERTEX
-    def find_next_action(self, parent_state_values, child_state_values, action_type, board):
+    def find_next_action(self, parent_state_values, child_state_values, action_type, board, placed_chip):
         if action_type == "placing":
             result = self.session.run(
                 """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
@@ -94,10 +94,10 @@ class Graph:
             return pan.PlaceChipAction(row, col, value)
         if action_type == "taking":
             result = self.session.run(
-                """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
+                """ MATCH (parentState:BoardState)-[r {placed_chip: $placed_chip}]->(childState:BoardState)
                     WHERE parentState.board_values = $parent_state_values AND childState.board_values = $child_state_values
                     RETURN r.combination
-                """, parent_state_values=parent_state_values, child_state_values=child_state_values
+                """, placed_chip=placed_chip, parent_state_values=parent_state_values, child_state_values=child_state_values
             )
             # record = result.single(strict=True).data()
             # combination = record['r.combination']
@@ -110,6 +110,7 @@ class Graph:
                 print("Comb")
                 for record in records:
                     print(record.data()['r.combination'])
+                    print(record.data()['r.placed_chip'])
             combination = records[0].data()['r.combination']
 
             return combination
