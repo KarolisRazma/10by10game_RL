@@ -1,17 +1,17 @@
-from neo4j import GraphDatabase
 import src.game_components.actions.placing_action as pan
-
-# Database Credentials
-uri = "bolt://localhost:7687"
-userName = "neo4j"
-password = "password"
 
 
 class Graph:
-    def __init__(self):
-        self.driver = GraphDatabase.driver(uri, auth=(userName, password))
-        self.driver.verify_connectivity()
-        self.session = self.driver.session()
+    def __init__(self, driver, session):
+        self.driver = driver
+        self.session = session
+
+    def add_root(self, board_size):
+        root = [0] * board_size
+        self.session.run(
+            "MERGE (:BoardState {board_values: $values, state_value: 0.0})",
+            values=root
+        )
 
     # ADD NEW VERTICES
     def add_n_board_states(self, current_state_values, next_state_values_list, action_type, actions, placed_chip):
@@ -21,36 +21,33 @@ class Graph:
     def add_board_state(self, current_state_values, next_state_values, action_type, action, placed_chip):
         # Create vertex
         result = self.session.run(
-            "MERGE (:BoardState {board_values: $board_values})",
+            "MERGE (:BoardState {board_values: $board_values, state_value: 0.0})",
             board_values=next_state_values
         )
+        # Create relation for placing
+        if action_type == "placing":
+            result = self.session.run(
+                """ MATCH (curr:BoardState {board_values: $c_board_values})
+                    MERGE (next:BoardState {board_values: $n_board_values})
+                    MERGE (curr)-[:NEXT {action_type: $action_type, row: $row, col: $col, value: $value}]->(next) 
+                """, c_board_values=current_state_values, n_board_values=next_state_values, action_type=action_type,
+                row=action.row, col=action.col, value=action.value
+            )
+        # Create relation for taking
+        else:
+            updated_action = []
+            for chip in action:
+                updated_action.append(chip.row)
+                updated_action.append(chip.col)
+                updated_action.append(chip.value)
 
-        # If not root element
-        if current_state_values is not None:
-            # Create relation for placing
-            if action_type == "placing":
-                result = self.session.run(
-                    """ MATCH (curr:BoardState {board_values: $c_board_values})
-                        MERGE (next:BoardState {board_values: $n_board_values})
-                        MERGE (curr)-[:NEXT {action_type: $action_type, row: $row, col: $col, value: $value}]->(next) 
-                    """, c_board_values=current_state_values, n_board_values=next_state_values, action_type=action_type,
-                    row=action.row, col=action.col, value=action.value
-                )
-            # Create relation for taking
-            else:
-                updated_action = []
-                for chip in action:
-                    updated_action.append(chip.row)
-                    updated_action.append(chip.col)
-                    updated_action.append(chip.value)
-
-                result = self.session.run(
-                    """ MATCH (curr:BoardState {board_values: $c_board_values})
-                        MERGE (next:BoardState {board_values: $n_board_values})
-                        MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination, placed_chip: $placed_chip}]->(next) 
-                    """, c_board_values=current_state_values, n_board_values=next_state_values,
-                    action_type=action_type, combination=updated_action, placed_chip=placed_chip
-                )
+            result = self.session.run(
+                """ MATCH (curr:BoardState {board_values: $c_board_values})
+                    MERGE (next:BoardState {board_values: $n_board_values})
+                    MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination, placed_chip: $placed_chip}]->(next) 
+                """, c_board_values=current_state_values, n_board_values=next_state_values,
+                action_type=action_type, combination=updated_action, placed_chip=placed_chip
+            )
 
     # GET VERTEX
     def find_board_state(self, board_values):
@@ -99,20 +96,26 @@ class Graph:
                     RETURN r.combination
                 """, placed_chip=placed_chip, parent_state_values=parent_state_values, child_state_values=child_state_values
             )
-            # record = result.single(strict=True).data()
-            # combination = record['r.combination']
+            # USE THIS LATER
+            ########################
+            record = result.single(strict=True).data()
+            combination = record['r.combination']
+            ########################
+
+            # DELETE THIS LATER
+            ########################
+            # records = list(result)
+            # if len(records) > 1:
+            #     print(f'Before: {parent_state_values}')
+            #     print(f'After: {child_state_values}')
+            #     print("Comb")
+            #     for record in records:
+            #         print(record.data()['r.combination'])
+            #         print(record.data()['r.placed_chip'])
+            # combination = records[0].data()['r.combination']
+            ########################
+
             # RETURNS list of chips row/col/value to remove
-
-            records = list(result)
-            if len(records) > 1:
-                print(f'Before: {parent_state_values}')
-                print(f'After: {child_state_values}')
-                print("Comb")
-                for record in records:
-                    print(record.data()['r.combination'])
-                    print(record.data()['r.placed_chip'])
-            combination = records[0].data()['r.combination']
-
             return combination
 
     # RETURNS BOARD VALUES OF ALL VERTICES

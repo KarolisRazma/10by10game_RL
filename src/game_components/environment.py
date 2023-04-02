@@ -1,5 +1,7 @@
 import random
 
+from neo4j import GraphDatabase
+
 import src.game_components.agent as ag
 import src.game_components.board as board
 import src.game_components.color as clr
@@ -11,8 +13,6 @@ import src.utilities.constants3x3 as c3x3
 import src.utilities.constants5x5 as c5x5
 import src.utilities.logger as logger
 
-import src.learning_algorithm_parts.graph as gh
-
 
 class Environment:
     # @param board_length ==> one side length in number of tiles
@@ -21,16 +21,11 @@ class Environment:
     # @param chips_per_type ==> quantity of one type chips
     # @param scoring_parameter ==> sum of horizontally/vertically/diagonally arranged chips that enable agent to collect
     # @param score_to_win ==> total points to win a game for agent
-    def __init__(self, board_length, container_capacity, chips_types, chips_per_type, scoring_parameter, score_to_win):
+    # @param db_name_1, db_name_2 ==> neoj4 database username, db for agents
+    def __init__(self, board_length, container_capacity, chips_types, chips_per_type,
+                 scoring_parameter, score_to_win, db_name_1, db_name_2):
         # Create board
         self.board = board.Board(length=board_length)
-
-        # Graph stored in Neo4j database
-        self.graph = gh.Graph()
-
-        # Create root vertex if it's not found
-        if not self.graph.is_vertex_found(self.board.board_to_chip_values()):
-            self.graph.add_board_state(None, [0] * self.board.board_size, None, None, None)
 
         # Current game state, same as board,
         # just converted into list of chip values
@@ -40,8 +35,21 @@ class Environment:
         self.container = container.Container(container_capacity, chips_types, chips_per_type)
 
         # Create agents
-        self.agents = [ag.Agent("[1] Brute Force Agent", board_length),
-                       ag.Agent("[2] Brute Force Agent", board_length)]
+        uri = "bolt://localhost:7687"
+        username = "neo4j"
+        password = "password"
+        driver = GraphDatabase.driver(uri, auth=(username, password))
+        driver.verify_connectivity()
+        session_agent_1 = driver.session(database=db_name_1)
+        session_agent_2 = driver.session(database=db_name_2)
+
+        agent1 = ag.Agent(game_board=self.board, nickname="[1] Brute Force Agent",
+                          driver=driver, session=session_agent_1)
+        agent2 = ag.Agent(game_board=self.board, nickname="[2] Brute Force Agent",
+                          driver=driver, session=session_agent_2)
+        agent1.graph.add_root(self.board.board_size)
+        agent2.graph.add_root(self.board.board_size)
+        self.agents = [agent1, agent2]
 
         # Draw initial chips, place initial chip on the board
         self.prepare_game()
@@ -116,9 +124,11 @@ class Environment:
         self.place_chip_on_board(chip, int((border_len - 1) / 2), int((border_len - 1) / 2), border_len)
 
         # Add next state to root
-        self.graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(), 'placing',
-                                   pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
-        # Update environment current state
+        self.agents[0].graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(),
+                                             'placing', pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
+        self.agents[1].graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(),
+                                             'placing', pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
+
         self.environment_current_state = self.board.board_to_chip_values()
 
     def place_chip_on_board(self, chip, row, column, border_length):
@@ -330,10 +340,6 @@ class Environment:
         turn = 0
         self.reset()
         while True:
-            # Set Agents current state(list of ints) accordingly to environment state
-            self.agents[0].current_vertex = self.environment_current_state.copy()
-            self.agents[1].current_vertex = self.environment_current_state.copy()
-
             # Log start of the turn
             self.log_turn_start(turn)
 
@@ -345,12 +351,15 @@ class Environment:
 
             # Get next board states from agent's placing actions
             next_board_states = agent.convert_placing_actions_to_board_states(self.board)
-            # Update graph with next board states
-            self.graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                          action_type='placing', actions=agent.actions, placed_chip=None)
+
+            # Update every agent graph with next board states
+            self.agents[0].graph.add_n_board_states(self.environment_current_state, next_board_states,
+                                                    action_type='placing', actions=agent.actions, placed_chip=None)
+            self.agents[1].graph.add_n_board_states(self.environment_current_state, next_board_states,
+                                                    action_type='placing', actions=agent.actions, placed_chip=None)
 
             # Get nodes from database
-            vertices = self.graph.find_board_state_next_vertices(self.environment_current_state)
+            vertices = agent.graph.find_board_state_next_vertices(self.environment_current_state)
 
             # Filter vertices which agent can't do at this stage
             # This is very limited at the moment (it only vary on list of chip values)
@@ -365,8 +374,8 @@ class Environment:
             selected_vertex = vertices[random_index]
 
             # Get action from this vertex
-            action = self.graph.find_next_action(self.environment_current_state, selected_vertex,
-                                                 'placing', self.board, placed_chip=None)
+            action = agent.graph.find_next_action(self.environment_current_state, selected_vertex,
+                                                  'placing', self.board, placed_chip=None)
 
             # Parse action into row/col/chip_index
             row = action.row
@@ -384,8 +393,6 @@ class Environment:
 
             # Update environment state and agent board states
             self.environment_current_state = self.board.board_to_chip_values()
-            self.agents[0].current_vertex = self.environment_current_state.copy()
-            self.agents[1].current_vertex = self.environment_current_state.copy()
 
             # TODO logging seperately
             self.log.add_log("info", "--------------------------------------")
@@ -408,11 +415,13 @@ class Environment:
                 # Get next board states from agent's placing actions
                 next_board_states = agent.convert_taking_actions_to_board_states(self.board, combinations, row, col)
                 # Update graph with next board states
-                self.graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                              'taking', combinations, placed_chip_info)
+                self.agents[0].graph.add_n_board_states(self.environment_current_state, next_board_states,
+                                                        'taking', combinations, placed_chip_info)
+                self.agents[1].graph.add_n_board_states(self.environment_current_state, next_board_states,
+                                                        'taking', combinations, placed_chip_info)
 
                 # Get nodes from database
-                vertices = self.graph.find_board_state_next_vertices(self.environment_current_state)
+                vertices = agent.graph.find_board_state_next_vertices(self.environment_current_state)
 
                 # Filter vertices which agent can't do at this stage
                 # This is very limited at the moment (it only vary on list of chip values)
@@ -427,8 +436,8 @@ class Environment:
                 selected_vertex = vertices[random_index]
 
                 # Get action from this vertex
-                action = self.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking',
-                                                     self.board, placed_chip=placed_chip_info)
+                action = agent.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking',
+                                                      self.board, placed_chip=placed_chip_info)
 
                 # Change value parameters_counter if more parametres are included in relationship NEXT
                 parameters_counter = 3
@@ -436,9 +445,9 @@ class Environment:
                 # Create combination from action
                 selected_combination = []
                 for i in range(time_iterate):
-                    com_chip = cp.Chip(action[3*i+2])
-                    com_chip.row = action[3*i+0]
-                    com_chip.col = action[3*i+1]
+                    com_chip = cp.Chip(action[3 * i + 2])
+                    com_chip.row = action[3 * i + 0]
+                    com_chip.col = action[3 * i + 1]
                     selected_combination.append(com_chip)
 
                 # TODO logging seperately
@@ -487,8 +496,6 @@ class Environment:
 
                 # Update environment state and agent board states
                 self.environment_current_state = self.board.board_to_chip_values()
-                self.agents[0].current_vertex = self.environment_current_state.copy()
-                self.agents[1].current_vertex = self.environment_current_state.copy()
 
             # draw new chip from the container
             # this if is related to drawing after taking chip from blue tile
