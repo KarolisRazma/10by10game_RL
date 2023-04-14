@@ -4,6 +4,7 @@ import random
 import src.learning_algorithm_parts.graph as gh
 import src.game_components.actions.placing_action as pan
 import src.game_components.actions.taking_action as tan
+import src.game_components.color as clr
 import src.game_components.chip as cp
 
 
@@ -25,7 +26,7 @@ class Agent:
         # Graph stored in Neo4j
         self.graph = gh.Graph(driver, session)
         # DELETE
-        # self.graph.delete_everything()
+        self.graph.delete_everything()
 
         # Agent's possible actions at given position
         self.actions = []
@@ -90,6 +91,36 @@ class Agent:
                 game_board_copy.remove_chip(chip.row * game_board_copy.border_length + chip.col)
             board_states.append(game_board_copy.board_to_chip_values())
         return board_states
+
+    def get_next_state_score_after_taking(self, game_board, combination, chip_placed_row, chip_placed_col):
+        agent_score = self.score
+        for chip in combination:
+            game_board_copy = copy.deepcopy(game_board)
+            # Tile where the chip belongs
+            tile = game_board_copy.get_tile_at_index(chip.row * game_board_copy.border_length + chip.col)
+            # if it's the same chip that was placed this round, player/agent can't take it
+            if chip_placed_row == chip.row and chip_placed_col == chip.col:
+                continue
+            if tile.color == clr.Color.BLUE:
+                agent_score += 2
+            if tile.color == clr.Color.WHITE:
+                agent_score += 1
+        return agent_score
+
+    @staticmethod
+    def get_next_state_chips_left_after_taking(game_board, chips_counter, combination,
+                                               chip_placed_row, chip_placed_col):
+        chips_left = chips_counter
+        for chip in combination:
+            game_board_copy = copy.deepcopy(game_board)
+            tile = game_board_copy.get_tile_at_index(chip.row * game_board_copy.border_length + chip.col)
+            if chip_placed_row == chip.row and chip_placed_col == chip.col:
+                continue
+            if tile.color == clr.Color.RED:
+                chips_left += 1
+            if tile.color == clr.Color.BLUE:
+                chips_left -= 1
+        return chips_left
 
     # Returns random action from actions list
     def select_action_randomly(self):

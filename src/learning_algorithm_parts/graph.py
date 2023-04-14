@@ -1,88 +1,242 @@
 import src.game_components.actions.placing_action as pan
+import src.learning_algorithm_parts.state_info as sti
 
+# Structure of the graph
+#
+# node GameState:
+#   property: board_values
+#   property: state_value
+#   property: my_turn
+#   property: my_score
+#   property: enemy_score
+#   property: chips_left
+#
+# relation NEXT_PLACING:
+#   property: row
+#   property: col
+#   property: value
+#
+# relation NEXT_TAKING
+#   property: combination [row, col, value]
+#   property: last_placed_chip [row, col, value]
 
 class Graph:
     def __init__(self, driver, session):
         self.driver = driver
         self.session = session
 
-    def add_root(self, board_size):
-        root = [0] * board_size
+    def add_root(self, board_values, game_info):
         self.session.run(
-            "MERGE (:BoardState {board_values: $values, state_value: 0.0})",
-            values=root
+            """
+            MERGE (:GameState {
+            board_values: $values,
+            state_value: 0.0,
+            my_turn: $my_turn,
+            my_score: $my_score,
+            enemy_score: $enemy_score,
+            chips_left: $chips_left})
+            """,
+            values=board_values, my_turn=game_info.my_turn, my_score=game_info.my_score,
+            enemy_score=game_info.enemy_score, chips_left=game_info.chips_left
         )
 
-    # ADD NEW VERTICES
-    def add_n_board_states(self, current_state_values, next_state_values_list, action_type, actions, placed_chip):
-        for (next_state_values, action) in zip(next_state_values_list, actions):
-            self.add_board_state(current_state_values, next_state_values, action_type, action, placed_chip)
 
-    def add_board_state(self, current_state_values, next_state_values, action_type, action, placed_chip):
-        # Create vertex
-        result = self.session.run(
-            "MERGE (:BoardState {board_values: $board_values, state_value: 0.0})",
-            board_values=next_state_values
+    # Parameters
+    # current_state_values --> list of ints
+    # next_states_values --> list of list of ints
+    # action_type --> taking or placing action
+    # actions --> actions list, combinations list
+    # last_placed_chip --> if action is taking, specify which chips was placed in the same round
+    # current_state_game_info --> StateInfo instance, holding current information about the game
+    # next_states_game_info --> list of StateInfo instances, holding new possible information about the game
+    def add_n_game_states(self, current_state_values, next_states_values,
+                           action_type, actions, last_placed_chip,
+                           current_state_game_info, next_states_game_info):
+        for (n_state_values, action, n_state_game_info) in zip(next_states_values, actions, next_states_game_info):
+            self.add_game_state(current_state_values, n_state_values, action_type,
+                                 action, last_placed_chip, current_state_game_info, n_state_game_info)
+
+    # Parameters
+    # current_state_values --> list of ints
+    # next_state_values --> list of ints
+    # action_type --> taking or placing action
+    # action --> action or combination
+    # last_placed_chip --> if action is taking, specify which chips was placed in the same round
+    # current_state_game_info --> StateInfo instance, holding current information about the game
+    # next_state_game_info --> StateInfo instance, holding new possible information about the game
+    def add_game_state(self, current_state_values, next_state_values,
+                        action_type, action, last_placed_chip, current_state_game_info, next_state_game_info):
+        # Create new game state
+        self.session.run(
+            """
+            MERGE (:GameState {
+            board_values: $board_values,
+            state_value: 0.0,
+            my_turn: $turn,
+            my_score: $my_score,
+            enemy_score: $enemy_score,
+            chips_left: $chips_left})
+            """,
+            board_values=next_state_values, turn=next_state_game_info.my_turn, my_score=next_state_game_info.my_score,
+            enemy_score=next_state_game_info.enemy_score, chips_left=next_state_game_info.chips_left
         )
-        # Create relation for placing
+        # Create relation for placing action
         if action_type == "placing":
-            result = self.session.run(
-                """ MATCH (curr:BoardState {board_values: $c_board_values})
-                    MERGE (next:BoardState {board_values: $n_board_values})
-                    MERGE (curr)-[:NEXT {action_type: $action_type, row: $row, col: $col, value: $value}]->(next) 
-                """, c_board_values=current_state_values, n_board_values=next_state_values, action_type=action_type,
-                row=action.row, col=action.col, value=action.value
-            )
-        # Create relation for taking
-        else:
-            updated_action = []
-            for chip in action:
-                updated_action.append(chip.row)
-                updated_action.append(chip.col)
-                updated_action.append(chip.value)
+            self.make_placing_rel(current_state_values, next_state_values,
+                                  action, current_state_game_info, next_state_game_info)
+            return
+        # Create relation for taking action
+        if action_type == "taking":
+            self.make_taking_rel(current_state_values, next_state_values, action, last_placed_chip,
+                                 current_state_game_info, next_state_game_info)
 
-            result = self.session.run(
-                """ MATCH (curr:BoardState {board_values: $c_board_values})
-                    MERGE (next:BoardState {board_values: $n_board_values})
-                    MERGE (curr)-[:NEXT {action_type: $action_type, combination: $combination, placed_chip: $placed_chip}]->(next) 
-                """, c_board_values=current_state_values, n_board_values=next_state_values,
-                action_type=action_type, combination=updated_action, placed_chip=placed_chip
-            )
+    def make_placing_rel(self, current_state_values, next_state_values, action,
+                         current_state_game_info, next_state_game_info):
+        self.session.run(
+            """ 
+            MATCH (curr:GameState {
+            board_values: $c_board_values,
+            my_turn: $c_turn,
+            my_score: $c_my_score,
+            enemy_score: $c_enemy_score,
+            chips_left: $c_chips_left})           
+            MERGE (next:GameState {
+            board_values: $n_board_values,
+            my_turn: $n_turn,
+            my_score: $n_my_score,
+            enemy_score: $n_enemy_score,
+            chips_left: $n_chips_left})
+            MERGE (curr)-[:NEXT_PLACING {row: $row, col: $col, value: $value}]->(next) 
+            """,
+            c_board_values=current_state_values, c_turn=current_state_game_info.my_turn,
+            c_my_score=current_state_game_info.my_score, c_enemy_score=current_state_game_info.enemy_score,
+            c_chips_left=current_state_game_info.chips_left,
+            n_board_values=next_state_values, n_turn=next_state_game_info.my_turn,
+            n_my_score=next_state_game_info.my_score, n_enemy_score=next_state_game_info.enemy_score,
+            n_chips_left=next_state_game_info.chips_left,
+            row=action.row, col=action.col, value=action.value
+        )
+
+    def make_taking_rel(self, current_state_values, next_state_values, action, last_placed_chip,
+                        current_state_game_info, next_state_game_info):
+        updated_action = []
+        for chip in action:
+            updated_action.append(chip.row)
+            updated_action.append(chip.col)
+            updated_action.append(chip.value)
+
+        self.session.run(
+            """ 
+            MATCH (curr:GameState {
+            board_values: $c_board_values,
+            my_turn: $c_turn,
+            my_score: $c_my_score,
+            enemy_score: $c_enemy_score,
+            chips_left: $c_chips_left})
+            MERGE (next:GameState {
+            board_values: $n_board_values,
+            my_turn: $n_turn,
+            my_score: $n_my_score,
+            enemy_score: $n_enemy_score,
+            chips_left: $n_chips_left})
+            MERGE (curr)-[:NEXT_TAKING {combination: $combination, last_placed_chip: $last_placed_chip}]->(next) 
+            """,
+            c_board_values=current_state_values, c_turn=current_state_game_info.my_turn,
+            c_my_score=current_state_game_info.my_score, c_enemy_score=current_state_game_info.enemy_score,
+            c_chips_left=current_state_game_info.chips_left,
+            n_board_values=next_state_values, n_turn=next_state_game_info.my_turn,
+            n_my_score=next_state_game_info.my_score, n_enemy_score=next_state_game_info.enemy_score,
+            n_chips_left=next_state_game_info.chips_left,
+            combination=updated_action, last_placed_chip=last_placed_chip
+        )
 
     # GET VERTEX
-    def find_board_state(self, board_values):
+    def find_game_state(self, board_values, game_info):
         result = self.session.run(
-            """ MATCH (boardState:BoardState)
-                WHERE boardState.board_values = $board_values
-                RETURN boardState 
-            """, board_values=board_values
+            """ 
+            MATCH (g:GameState {
+            board_values: $board_values,
+            my_turn: $turn,
+            my_score: $my_score,
+            enemy_score: $enemy_score,
+            chips_left: $chips_left})
+            RETURN g
+            """,
+            board_values=board_values, turn=game_info.my_turn, my_score=game_info.my_score,
+            enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
         )
         record = result.single(strict=True)
         return record
 
     # GET GIVEN VERTEX NEXT VERTICES
-    def find_board_state_next_vertices(self, parent_state_values):
-        result = self.session.run(
-            """ MATCH (parentState:BoardState)-[:NEXT]->(childState:BoardState)
-                WHERE parentState.board_values = $parent_state_values
-                RETURN childState
-            """, parent_state_values=parent_state_values
-        )
+    # Returns StateInfo object
+    def find_game_state_next_vertices(self, action_type, current_state_values, game_info):
+        if action_type == 'placing':
+            result = self.session.run(
+                """ 
+                MATCH (:GameState {
+                board_values: $board_values,
+                my_turn: $turn,
+                my_score: $my_score,
+                enemy_score: $enemy_score,
+                chips_left: $chips_left})-[:NEXT_PLACING]->(c:GameState)
+                RETURN c
+                """,
+                board_values=current_state_values, turn=game_info.my_turn, my_score=game_info.my_score,
+                enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
+            )
+        if action_type == 'taking':
+            result = self.session.run(
+                """ 
+                MATCH (:GameState {
+                board_values: $board_values,
+                my_turn: $turn,
+                my_score: $my_score,
+                enemy_score: $enemy_score,
+                chips_left: $chips_left})-[:NEXT_TAKING]->(c:GameState)
+                RETURN c
+                """,
+                board_values=current_state_values, turn=game_info.my_turn, my_score=game_info.my_score,
+                enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
+            )
         records = list(result)
-        # Parse records to list of ints
         updated_records = []
         for record in records:
-            updated_records.append(record.data()['childState']['board_values'])
+            board_values = record.data()['c']['board_values']
+            my_turn = record.data()['c']['my_turn']
+            my_score = record.data()['c']['my_score']
+            enemy_score = record.data()['c']['enemy_score']
+            chips_left = record.data()['c']['chips_left']
+            state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+            updated_records.append(state_info)
         return updated_records
 
     # GET ACTION FROM PARENT TO CHILD VERTEX
-    def find_next_action(self, parent_state_values, child_state_values, action_type, board, placed_chip):
+    def find_next_action(self, current_state_values, next_state_values, action_type,
+                         board, last_placed_chip, current_state_game_info, next_state_game_info):
         if action_type == "placing":
             result = self.session.run(
-                """ MATCH (parentState:BoardState)-[r]->(childState:BoardState)
-                    WHERE parentState.board_values = $parent_state_values AND childState.board_values = $child_state_values
-                    RETURN r.row, r.col, r.value
-                """, parent_state_values=parent_state_values, child_state_values=child_state_values
+                """
+                MATCH (:GameState {
+                board_values: $c_board_values,
+                my_turn: $c_turn,
+                my_score: $c_my_score,
+                enemy_score: $c_enemy_score,
+                chips_left: $c_chips_left})
+                -[r]->(:GameState {
+                board_values: $n_board_values,
+                my_turn: $n_turn,
+                my_score: $n_my_score,
+                enemy_score: $n_enemy_score,
+                chips_left: $n_chips_left})
+                RETURN r.row, r.col, r.value
+                """,
+                c_board_values=current_state_values, c_turn=current_state_game_info.my_turn,
+                c_my_score=current_state_game_info.my_score, c_enemy_score=current_state_game_info.enemy_score,
+                c_chips_left=current_state_game_info.chips_left,
+                n_board_values=next_state_values, n_turn=next_state_game_info.my_turn,
+                n_my_score=next_state_game_info.my_score, n_enemy_score=next_state_game_info.enemy_score,
+                n_chips_left=next_state_game_info.chips_left,
             )
             record = result.single(strict=True).data()
             row = int(record['r.row'])
@@ -91,10 +245,28 @@ class Graph:
             return pan.PlaceChipAction(row, col, value)
         if action_type == "taking":
             result = self.session.run(
-                """ MATCH (parentState:BoardState)-[r {placed_chip: $placed_chip}]->(childState:BoardState)
-                    WHERE parentState.board_values = $parent_state_values AND childState.board_values = $child_state_values
-                    RETURN r.combination
-                """, placed_chip=placed_chip, parent_state_values=parent_state_values, child_state_values=child_state_values
+                """
+                MATCH (:GameState {
+                board_values: $c_board_values,
+                my_turn: $c_turn,
+                my_score: $c_my_score,
+                enemy_score: $c_enemy_score,
+                chips_left: $c_chips_left})
+                -[r {last_placed_chip: $last_placed_chip}]->(:GameState {
+                board_values: $n_board_values,
+                my_turn: $n_turn,
+                my_score: $n_my_score,
+                enemy_score: $n_enemy_score,
+                chips_left: $n_chips_left})
+                RETURN r.combination
+                """,
+                last_placed_chip=last_placed_chip,
+                c_board_values=current_state_values, c_turn=current_state_game_info.my_turn,
+                c_my_score=current_state_game_info.my_score, c_enemy_score=current_state_game_info.enemy_score,
+                c_chips_left=current_state_game_info.chips_left,
+                n_board_values=next_state_values, n_turn=next_state_game_info.my_turn,
+                n_my_score=next_state_game_info.my_score, n_enemy_score=next_state_game_info.enemy_score,
+                n_chips_left=next_state_game_info.chips_left,
             )
             # USE THIS LATER
             ########################

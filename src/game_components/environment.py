@@ -1,3 +1,4 @@
+import copy
 import random
 
 from neo4j import GraphDatabase
@@ -8,6 +9,8 @@ import src.game_components.color as clr
 import src.game_components.chip as cp
 import src.game_components.container as container
 import src.game_components.actions.placing_action as pan
+
+import src.learning_algorithm_parts.state_info as sti
 
 import src.utilities.constants3x3 as c3x3
 import src.utilities.constants5x5 as c5x5
@@ -47,8 +50,6 @@ class Environment:
                           driver=driver, session=session_agent_1)
         agent2 = ag.Agent(game_board=self.board, nickname="[2] Brute Force Agent",
                           driver=driver, session=session_agent_2)
-        agent1.graph.add_root(self.board.board_size)
-        agent2.graph.add_root(self.board.board_size)
         self.agents = [agent1, agent2]
 
         # Draw initial chips, place initial chip on the board
@@ -122,14 +123,6 @@ class Environment:
         chip = self.container.draw_chip(chip_index_in_container)
         border_len = self.board.border_length
         self.place_chip_on_board(chip, int((border_len - 1) / 2), int((border_len - 1) / 2), border_len)
-
-        # Add next state to root
-        self.agents[0].graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(),
-                                             'placing', pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
-        self.agents[1].graph.add_board_state(self.environment_current_state, self.board.board_to_chip_values(),
-                                             'placing', pan.PlaceChipAction(chip.row, chip.col, chip.value), None)
-
-        self.environment_current_state = self.board.board_to_chip_values()
 
     def place_chip_on_board(self, chip, row, column, border_length):
         chip.row = row
@@ -237,113 +230,29 @@ class Environment:
         self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].id, self.agents[0].score))
         self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].id, self.agents[1].score))
 
-    # DEPRECATED, WON'T WORK, NEED TO ADAPT TO NEW ACTIONS
-    def start_episode_without_graph(self):
-        turn = 0
-        self.reset()
-        while True:
-            # self.log.add_log("info", "--------------------------------------")
-            # self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
-            # self.log.add_log("info", self.board.board_to_string())
-            # self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
-            # self.log.add_log("info", "--------------------------------------")
-
-            # get index (of chip) and row/col
-            # (brute force agent)
-            agent = self.agents[turn]  # take agent whose turn it is
-            agent.get_actions_for_placing(self.board)  # get agent placing actions
-            agent_action = agent.select_action_randomly()  # get which action agent wants to select
-            row = agent_action.row
-            col = agent_action.col
-            chip_index = agent_action.chip_index
-
-            # take chip from player's/agent's hand
-            selected_chip = agent.use_chip(chip_index)
-            # player/agent place one chip on the board
-            self.place_chip_on_board(selected_chip, row, col, self.board.border_length)
-
-            # self.log.add_log("info", "--------------------------------------")
-            # self.log.add_log("info", "After placing chip:")
-            # self.log.add_log("info", self.board.board_to_string())
-            # self.log.add_log("info", "--------------------------------------")
-
-            combinations = self.get_combinations()  # check if somehow there is value of 10 on the board
-
-            # player/agent takes these chips
-            # except the one placed this round
-            if combinations:
-                agent.get_actions_for_taking(combinations)  # agent gets all actions for taking chips
-                action = agent.select_action_randomly()  # selects randomly, returns index of action
-                selected_combination = combinations[action.combination_index]
-                # self.log.add_log("info", "--------------------------------------")
-                # self.log.add_log("info", "Taking from board:")
-                # self.log.add_log("info", self.board.board_to_string())
-                # self.log.add_log("info", "--------------------------------------")
-                for chip in selected_combination:
-                    # tile where the chip belongs
-                    tile = self.board.get_tile_at_index(chip.row * self.board.border_length + chip.col)
-
-                    # if it's the same chip that was placed this round, player/agent can't take it
-                    if row == chip.row and col == chip.col:
-                        continue
-
-                    # return to container
-                    if tile.color == clr.Color.RED:
-                        self.container.chips.append(chip)
-                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
-
-                    # take a chip from board
-                    # and collect one more from the container
-                    if tile.color == clr.Color.BLUE:
-                        # from board
-                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
-                        self.agents[turn].captured_chips.append(chip)
-                        self.agents[turn].score += 1
-                        # from container, do not forget to check if container has chips!
-                        # if container is not empty
-                        self.from_container_to_agent(turn, is_captured=True)
-                        self.agents[turn].score += 1
-                        # if container is empty
-                        if len(self.container.chips) == 0:
-                            end_game_flag = self.is_endgame()
-                            if end_game_flag > 0:
-                                self.deal_with_endgame(end_game_flag)
-                                break
-
-                    # collect chip normally
-                    if tile.color == clr.Color.WHITE:
-                        # from board
-                        self.board.remove_chip(chip.row * self.board.border_length + chip.col)
-                        self.agents[turn].captured_chips.append(chip)
-                        self.agents[turn].score += 1
-
-            # draw new chip from the container
-            # this if is related to drawing after taking chip from blue tile
-            if len(self.container.chips) != 0:
-                self.from_container_to_agent(turn)
-            else:
-                break
-
-            # in the end of the round
-            # check for end game conditions
-            end_game_flag = self.is_endgame()
-            if end_game_flag > 0:
-                self.deal_with_endgame(end_game_flag)
-                break
-
-            # next player's/agent's turn
-            turn = 0 if turn == 1 else 1
-
     def start_episode_with_graph_db(self):
         # Initial game settings
-        # 0_Agent starts game / Reset game parameters
         turn = 0
         self.reset()
+
+        # Set initial state (node in Neo4j)
+        self.environment_current_state = self.board.board_to_chip_values()
+        current_state_game_info_agent_0 = sti.StateInfo(board_values=self.environment_current_state,
+                                                        my_turn=0, my_score=0, enemy_score=0,
+                                                        chips_left=len(self.container.chips))
+        current_state_game_info_agent_1 = sti.StateInfo(board_values=self.environment_current_state,
+                                                        my_turn=1, my_score=0, enemy_score=0,
+                                                        chips_left=len(self.container.chips))
+        self.agents[0].graph.add_root(self.environment_current_state, current_state_game_info_agent_0)
+        self.agents[1].graph.add_root(self.environment_current_state, current_state_game_info_agent_1)
+
+        # Start game loop
         while True:
             # Log start of the turn
             self.log_turn_start(turn)
 
             # Take agent whose turn it is
+            # And enemy agent for later use in finding next action
             agent = self.agents[turn]
 
             # Get agent's placing actions
@@ -352,20 +261,53 @@ class Environment:
             # Get next board states from agent's placing actions
             next_board_states = agent.convert_placing_actions_to_board_states(self.board)
 
-            # Update every agent graph with next board states
-            self.agents[0].graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                                    action_type='placing', actions=agent.actions, placed_chip=None)
-            self.agents[1].graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                                    action_type='placing', actions=agent.actions, placed_chip=None)
+            for (action, next_board_state) in zip(agent.actions, next_board_states):
+                # Construct game state info (my_turn, my_score, enemy_score, chips_left)
+                if turn == 0:
+                    next_state_game_info_agent_0 = sti.StateInfo(board_values=next_board_state,
+                                                                 my_turn=1, my_score=self.agents[0].score,
+                                                                 enemy_score=self.agents[1].score,
+                                                                 chips_left=len(self.container.chips) - 1)
+                    next_state_game_info_agent_1 = sti.StateInfo(board_values=next_board_state,
+                                                                 my_turn=0, my_score=self.agents[1].score,
+                                                                 enemy_score=self.agents[0].score,
+                                                                 chips_left=len(self.container.chips) - 1)
+                else:
+                    next_state_game_info_agent_0 = sti.StateInfo(board_values=next_board_state,
+                                                                 my_turn=0, my_score=self.agents[0].score,
+                                                                 enemy_score=self.agents[1].score,
+                                                                 chips_left=len(self.container.chips) - 1)
+                    next_state_game_info_agent_1 = sti.StateInfo(board_values=next_board_state,
+                                                                 my_turn=1, my_score=self.agents[1].score,
+                                                                 enemy_score=self.agents[0].score,
+                                                                 chips_left=len(self.container.chips) - 1)
+                # Update every agent graph with next board states
+                self.agents[0].graph.add_game_state(current_state_values=self.environment_current_state,
+                                                    next_state_values=next_board_state,
+                                                    action_type='placing', action=action,
+                                                    last_placed_chip=None,
+                                                    current_state_game_info=current_state_game_info_agent_0,
+                                                    next_state_game_info=next_state_game_info_agent_0)
+
+                self.agents[1].graph.add_game_state(current_state_values=self.environment_current_state,
+                                                    next_state_values=next_board_state,
+                                                    action_type='placing', action=action,
+                                                    last_placed_chip=None,
+                                                    current_state_game_info=current_state_game_info_agent_1,
+                                                    next_state_game_info=next_state_game_info_agent_1)
+
+            current_state_game_info = current_state_game_info_agent_0 if turn == 0 else current_state_game_info_agent_1
 
             # Get nodes from database
-            vertices = agent.graph.find_board_state_next_vertices(self.environment_current_state)
+            vertices = agent.graph.find_game_state_next_vertices(action_type='placing',
+                                                                 current_state_values=self.environment_current_state,
+                                                                 game_info=current_state_game_info)
 
             # Filter vertices which agent can't do at this stage
-            # This is very limited at the moment (it only vary on list of chip values)
             updated_vertices = []
             for vertex in vertices:
-                if vertex in next_board_states:
+                # TODO not sure if this is the right way to filter
+                if vertex.board_values in next_board_states:
                     updated_vertices.append(vertex)
             vertices = updated_vertices
 
@@ -373,9 +315,15 @@ class Environment:
             random_index = random.randint(0, len(vertices) - 1)
             selected_vertex = vertices[random_index]
 
+            # TODO do I get correct next state game information?
+            next_state_game_info = copy.deepcopy(selected_vertex)
+
             # Get action from this vertex
-            action = agent.graph.find_next_action(self.environment_current_state, selected_vertex,
-                                                  'placing', self.board, placed_chip=None)
+            action = agent.graph.find_next_action(current_state_values=self.environment_current_state,
+                                                  next_state_values=selected_vertex.board_values, action_type='placing',
+                                                  board=self.board, last_placed_chip=None,
+                                                  current_state_game_info=current_state_game_info,
+                                                  next_state_game_info=next_state_game_info)
 
             # Parse action into row/col/chip_index
             row = action.row
@@ -406,28 +354,75 @@ class Environment:
             # Agent takes these chips
             # Except the one placed this round
             if combinations:
-                # Get all actions for taking chips
-                agent.get_actions_for_taking(combinations)
+                # If there's any combinations, update current state game info
+                current_state_game_info = copy.deepcopy(next_state_game_info)
+
+                # Set current state game info
+                current_state_game_info_agent_0 = copy.deepcopy(current_state_game_info)
+                current_state_game_info_agent_1 = copy.deepcopy(current_state_game_info)
+                if turn == 0:
+                    current_state_game_info_agent_0.my_turn = 1
+                    current_state_game_info_agent_1.my_turn = 0
+                else:
+                    current_state_game_info_agent_0.my_turn = 0
+                    current_state_game_info_agent_1.my_turn = 1
 
                 # Store chip info (row, col, value) in a list
                 placed_chip_info = [row, col, value]
 
-                # Get next board states from agent's placing actions
+                # Get next board states from agent's taking actions
                 next_board_states = agent.convert_taking_actions_to_board_states(self.board, combinations, row, col)
-                # Update graph with next board states
-                self.agents[0].graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                                        'taking', combinations, placed_chip_info)
-                self.agents[1].graph.add_n_board_states(self.environment_current_state, next_board_states,
-                                                        'taking', combinations, placed_chip_info)
+
+                # Do taking actions on agent's instance copies
+                # And update graph with next board states
+                for (combination, next_board_state) in zip(combinations, next_board_states):
+                    agent_score = agent.get_next_state_score_after_taking(self.board, combination, row, col)
+                    chips_left = agent.get_next_state_chips_left_after_taking(self.board, len(self.container.chips),
+                                                                              combination, row, col)
+                    # Construct game info (my_turn, my_score, enemy_score, chips_left)
+                    if turn == 0:
+                        next_state_game_info_agent_0 = sti.StateInfo(board_values=next_board_state,
+                                                                     my_turn=1, my_score=agent_score,
+                                                                     enemy_score=self.agents[1].score,
+                                                                     chips_left=chips_left)
+                        next_state_game_info_agent_1 = sti.StateInfo(board_values=next_board_state,
+                                                                     my_turn=0, my_score=self.agents[1].score,
+                                                                     enemy_score=agent_score,
+                                                                     chips_left=chips_left)
+                    else:
+                        next_state_game_info_agent_0 = sti.StateInfo(board_values=next_board_state,
+                                                                     my_turn=0, my_score=self.agents[0].score,
+                                                                     enemy_score=agent_score,
+                                                                     chips_left=chips_left)
+                        next_state_game_info_agent_1 = sti.StateInfo(board_values=next_board_state,
+                                                                     my_turn=1, my_score=agent_score,
+                                                                     enemy_score=self.agents[0].score,
+                                                                     chips_left=chips_left)
+
+                    self.agents[0].graph.add_game_state(current_state_values=self.environment_current_state,
+                                                        next_state_values=next_board_state,
+                                                        action_type='taking', action=combination,
+                                                        last_placed_chip=placed_chip_info,
+                                                        current_state_game_info=current_state_game_info_agent_0,
+                                                        next_state_game_info=next_state_game_info_agent_0)
+
+                    self.agents[1].graph.add_game_state(current_state_values=self.environment_current_state,
+                                                        next_state_values=next_board_state,
+                                                        action_type='taking', action=combination,
+                                                        last_placed_chip=placed_chip_info,
+                                                        current_state_game_info=current_state_game_info_agent_1,
+                                                        next_state_game_info=next_state_game_info_agent_1)
 
                 # Get nodes from database
-                vertices = agent.graph.find_board_state_next_vertices(self.environment_current_state)
+                vertices = agent.graph.find_game_state_next_vertices(action_type='taking',
+                                                                     current_state_values=self.environment_current_state,
+                                                                     game_info=current_state_game_info)
 
                 # Filter vertices which agent can't do at this stage
-                # This is very limited at the moment (it only vary on list of chip values)
                 updated_vertices = []
                 for vertex in vertices:
-                    if vertex in next_board_states:
+                    # TODO not sure if this is the right way to filter
+                    if vertex.board_values in next_board_states:
                         updated_vertices.append(vertex)
                 vertices = updated_vertices
 
@@ -435,9 +430,15 @@ class Environment:
                 random_index = random.randint(0, len(vertices) - 1)
                 selected_vertex = vertices[random_index]
 
+                next_state_game_info = copy.deepcopy(selected_vertex)
+
                 # Get action from this vertex
-                action = agent.graph.find_next_action(self.environment_current_state, selected_vertex, 'taking',
-                                                      self.board, placed_chip=placed_chip_info)
+                action = agent.graph.find_next_action(current_state_values=self.environment_current_state,
+                                                      next_state_values=selected_vertex.board_values,
+                                                      action_type='taking',
+                                                      board=self.board, last_placed_chip=placed_chip_info,
+                                                      current_state_game_info=current_state_game_info,
+                                                      next_state_game_info=next_state_game_info)
 
                 # Change value parameters_counter if more parametres are included in relationship NEXT
                 parameters_counter = 3
@@ -496,6 +497,23 @@ class Environment:
 
                 # Update environment state and agent board states
                 self.environment_current_state = self.board.board_to_chip_values()
+
+            # Updated current state game info
+            # Assign differently for each agent
+            # Score/Enemy_Score must be swapped
+            # TODO state_value can cause problems later
+            current_state_game_info_agent_0 = copy.deepcopy(next_state_game_info)
+            current_state_game_info_agent_1 = copy.deepcopy(next_state_game_info)
+            if turn == 0:
+                current_state_game_info_agent_0.my_turn = 1
+                current_state_game_info_agent_1.my_turn = 0
+                current_state_game_info_agent_1.my_score, current_state_game_info_agent_1.enemy_score = \
+                    current_state_game_info_agent_1.enemy_score, current_state_game_info_agent_1.my_score
+            else:
+                current_state_game_info_agent_1.my_turn = 1
+                current_state_game_info_agent_0.my_turn = 0
+                current_state_game_info_agent_0.my_score, current_state_game_info_agent_0.enemy_score = \
+                    current_state_game_info_agent_0.enemy_score, current_state_game_info_agent_0.my_score
 
             # draw new chip from the container
             # this if is related to drawing after taking chip from blue tile

@@ -17,7 +17,7 @@ import utilities.util_funcs as util
 
 
 # constants
-episodes = 100
+episodes = 10
 
 if __name__ == "__main__":
 

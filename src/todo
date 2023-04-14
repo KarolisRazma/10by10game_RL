@@ -1,0 +1,6 @@
+virsune:
+    - board_values : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    - value : [0;1]
+    - my_score : [0;n]
+    - enemy_score : [0;n]
+    - agent_turn : [my;enemy]
