@@ -246,6 +246,10 @@ class Environment:
         self.agents[0].graph.add_root(self.environment_current_state, current_state_game_info_agent_0)
         self.agents[1].graph.add_root(self.environment_current_state, current_state_game_info_agent_1)
 
+        # Add state info to agent's paths
+        self.agents[0].last_episode_path.state_info_list.append(current_state_game_info_agent_0)
+        self.agents[1].last_episode_path.state_info_list.append(current_state_game_info_agent_1)
+
         # Start game loop
         while True:
             # Log start of the turn
@@ -317,6 +321,22 @@ class Environment:
 
             # TODO do I get correct next state game information?
             next_state_game_info = copy.deepcopy(selected_vertex)
+
+            # Add state info to agent's paths
+            next_state_game_info_agent_0 = copy.deepcopy(next_state_game_info)
+            next_state_game_info_agent_1 = copy.deepcopy(next_state_game_info)
+            if turn == 0:
+                next_state_game_info_agent_0.my_turn = 1
+                next_state_game_info_agent_1.my_turn = 0
+                next_state_game_info_agent_1.my_score, next_state_game_info_agent_1.enemy_score = \
+                    next_state_game_info_agent_1.enemy_score, next_state_game_info_agent_1.my_score
+            else:
+                next_state_game_info_agent_0.my_turn = 0
+                next_state_game_info_agent_1.my_turn = 1
+                next_state_game_info_agent_0.my_score, next_state_game_info_agent_0.enemy_score = \
+                    next_state_game_info_agent_0.enemy_score, next_state_game_info_agent_0.my_score
+            self.agents[0].last_episode_path.state_info_list.append(next_state_game_info_agent_0)
+            self.agents[1].last_episode_path.state_info_list.append(next_state_game_info_agent_1)
 
             # Get action from this vertex
             action = agent.graph.find_next_action(current_state_values=self.environment_current_state,
@@ -431,6 +451,22 @@ class Environment:
                 selected_vertex = vertices[random_index]
 
                 next_state_game_info = copy.deepcopy(selected_vertex)
+
+                # Add state info to agent's paths
+                next_state_game_info_agent_0 = copy.deepcopy(next_state_game_info)
+                next_state_game_info_agent_1 = copy.deepcopy(next_state_game_info)
+                if turn == 0:
+                    next_state_game_info_agent_0.my_turn = 1
+                    next_state_game_info_agent_1.my_turn = 0
+                    next_state_game_info_agent_1.my_score, next_state_game_info_agent_1.enemy_score = \
+                        next_state_game_info_agent_1.enemy_score, next_state_game_info_agent_1.my_score
+                else:
+                    next_state_game_info_agent_0.my_turn = 0
+                    next_state_game_info_agent_1.my_turn = 1
+                    next_state_game_info_agent_0.my_score, next_state_game_info_agent_0.enemy_score = \
+                        next_state_game_info_agent_0.enemy_score, next_state_game_info_agent_0.my_score
+                self.agents[0].last_episode_path.state_info_list.append(next_state_game_info_agent_0)
+                self.agents[1].last_episode_path.state_info_list.append(next_state_game_info_agent_1)
 
                 # Get action from this vertex
                 action = agent.graph.find_next_action(current_state_values=self.environment_current_state,

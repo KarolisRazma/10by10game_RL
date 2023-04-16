@@ -2,6 +2,7 @@ import copy
 import math
 import random
 import src.learning_algorithm_parts.graph as gh
+import src.learning_algorithm_parts.path as ph
 import src.game_components.actions.placing_action as pan
 import src.game_components.actions.taking_action as tan
 import src.game_components.color as clr
@@ -25,8 +26,9 @@ class Agent:
 
         # Graph stored in Neo4j
         self.graph = gh.Graph(driver, session)
-        # DELETE
-        self.graph.delete_everything()
+
+        # Every move which happened in last episode stored here
+        self.last_episode_path = ph.Path()
 
         # Agent's possible actions at given position
         self.actions = []
@@ -44,6 +46,7 @@ class Agent:
         self.score = 0
         self.chips = []
         self.captured_chips = []
+        self.last_episode_path.reset()
 
     # returns used chip and deletes it from agent's inventory
     def use_chip(self, chip_index):
