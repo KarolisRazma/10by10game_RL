@@ -20,7 +20,7 @@ import utilities.util_funcs as util
 
 
 # constants
-episodes = 1
+episodes = 10
 
 if __name__ == "__main__":
 
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     path_evaluator = pe.PathEvaluator()
 
     # Delete Graphs
-    # env.agents[0].graph.delete_everything()
-    # env.agents[1].graph.delete_everything()
+    env.agents[0].graph.delete_everything()
+    env.agents[1].graph.delete_everything()
 
     start = time.time()
     for i in range(episodes):
@@ -48,11 +48,11 @@ if __name__ == "__main__":
 
         # Evaluate agent 0 path
         path_evaluator.set_path(agent_0.last_episode_path)
-        path_evaluator.eval_path(agent_0.graph)
+        path_evaluator.eval_path(agent_0.graph, agent_0.is_last_game_won)
 
         # Evaluate agent 1 path
         path_evaluator.set_path(agent_1.last_episode_path)
-        path_evaluator.eval_path(agent_1.graph)
+        path_evaluator.eval_path(agent_1.graph, agent_1.is_last_game_won)
 
     end = time.time()
 

@@ -1,6 +1,7 @@
 import src.game_components.actions.placing_action as pan
 import src.learning_algorithm_parts.state_info as sti
 
+
 # Structure of the graph
 #
 # node GameState:
@@ -26,6 +27,10 @@ class Graph:
         self.session = session
 
     def add_root(self, board_values, game_info):
+        # Check if node exists
+        if self.is_vertex_found(game_info):
+            return
+
         self.session.run(
             """
             MERGE (:GameState {
@@ -40,7 +45,6 @@ class Graph:
             enemy_score=game_info.enemy_score, chips_left=game_info.chips_left
         )
 
-
     # Parameters
     # current_state_values --> list of ints
     # next_states_values --> list of list of ints
@@ -50,11 +54,11 @@ class Graph:
     # current_state_game_info --> StateInfo instance, holding current information about the game
     # next_states_game_info --> list of StateInfo instances, holding new possible information about the game
     def add_n_game_states(self, current_state_values, next_states_values,
-                           action_type, actions, last_placed_chip,
-                           current_state_game_info, next_states_game_info):
+                          action_type, actions, last_placed_chip,
+                          current_state_game_info, next_states_game_info):
         for (n_state_values, action, n_state_game_info) in zip(next_states_values, actions, next_states_game_info):
             self.add_game_state(current_state_values, n_state_values, action_type,
-                                 action, last_placed_chip, current_state_game_info, n_state_game_info)
+                                action, last_placed_chip, current_state_game_info, n_state_game_info)
 
     # Parameters
     # current_state_values --> list of ints
@@ -65,7 +69,11 @@ class Graph:
     # current_state_game_info --> StateInfo instance, holding current information about the game
     # next_state_game_info --> StateInfo instance, holding new possible information about the game
     def add_game_state(self, current_state_values, next_state_values,
-                        action_type, action, last_placed_chip, current_state_game_info, next_state_game_info):
+                       action_type, action, last_placed_chip, current_state_game_info, next_state_game_info):
+        # Check if node exists
+        if self.is_vertex_found(next_state_game_info):
+            return
+
         # Create new game state
         self.session.run(
             """
@@ -199,6 +207,20 @@ class Graph:
                 board_values=current_state_values, turn=game_info.my_turn, my_score=game_info.my_score,
                 enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
             )
+        if action_type == 'any':
+            result = self.session.run(
+                """ 
+                MATCH (:GameState {
+                board_values: $board_values,
+                my_turn: $turn,
+                my_score: $my_score,
+                enemy_score: $enemy_score,
+                chips_left: $chips_left})-->(c:GameState)
+                RETURN c
+                """,
+                board_values=current_state_values, turn=game_info.my_turn, my_score=game_info.my_score,
+                enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
+            )
         records = list(result)
         updated_records = []
         for record in records:
@@ -207,7 +229,9 @@ class Graph:
             my_score = record.data()['c']['my_score']
             enemy_score = record.data()['c']['enemy_score']
             chips_left = record.data()['c']['chips_left']
+            state_value = record.data()['c']['state_value']
             state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+            state_info.state_value = state_value
             updated_records.append(state_info)
         return updated_records
 
@@ -281,12 +305,20 @@ class Graph:
         return records
 
     # RETURNS TRUE IF VERTEX IS FOUND
-    def is_vertex_found(self, board_values):
+    def is_vertex_found(self, game_info):
         result = self.session.run(
-            """ MATCH (g:GameState {board_values: $board_values})
-                WITH COUNT(g) > 0  as node_exists
-                RETURN node_exists
-            """, board_values=board_values
+            """ 
+            MATCH (g:GameState {
+            board_values: $board_values,
+            my_turn: $turn,
+            my_score: $my_score,
+            enemy_score: $enemy_score,
+            chips_left: $chips_left})    
+            WITH COUNT(g) > 0  as node_exists
+            RETURN node_exists
+            """,
+            board_values = game_info.board_values, turn = game_info.my_turn, my_score = game_info.my_score,
+            enemy_score = game_info.enemy_score, chips_left = game_info.chips_left
         )
         return result.single(strict=True).data()['node_exists']
 
@@ -313,4 +345,14 @@ class Graph:
             my_score=state_info.my_score, enemy_score=state_info.enemy_score,
             chips_left=state_info.chips_left, state_value=state_value
         )
+
+    # Finds maximum value of next states for given current state
+    # argument current_state_info is StateInfo object
+    def find_maximum_state_value(self, current_state_info):
+        next_vertices_info = self.find_game_state_next_vertices(action_type='any',
+                                                                current_state_values=current_state_info.board_values,
+                                                                game_info=current_state_info)
+        # Find max out of these next vertices
+        return (max(next_vertices_info, key=lambda x: x.state_value)).state_value
+
 

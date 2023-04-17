@@ -29,6 +29,8 @@ class Agent:
 
         # Every move which happened in last episode stored here
         self.last_episode_path = ph.Path()
+        # Flag to store last game result
+        self.is_last_game_won = None
 
         # Agent's possible actions at given position
         self.actions = []

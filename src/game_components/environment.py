@@ -201,20 +201,30 @@ class Environment:
         self.episodes += 1
         if end_game_flag == 1:
             self.agents[0].wins += 1
+            self.agents[0].is_last_game_won = True
+            self.agents[1].is_last_game_won = False
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
+            self.agents[0].is_last_game_won = False
+            self.agents[1].is_last_game_won = True
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
+                self.agents[0].is_last_game_won = True
+                self.agents[1].is_last_game_won = False
                 return
             if self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
+                self.agents[0].is_last_game_won = False
+                self.agents[1].is_last_game_won = True
                 return
             else:
                 self.agents[0].draws += 1
                 self.agents[1].draws += 1
+                self.agents[0].is_last_game_won = False
+                self.agents[1].is_last_game_won = False
                 return
 
     def log_turn_start(self, turn):
@@ -382,9 +392,13 @@ class Environment:
                 if turn == 0:
                     current_state_game_info_agent_0.my_turn = 1
                     current_state_game_info_agent_1.my_turn = 0
+                    current_state_game_info_agent_1.my_score, current_state_game_info_agent_1.enemy_score = \
+                        current_state_game_info_agent_1.enemy_score, current_state_game_info_agent_1.my_score
                 else:
                     current_state_game_info_agent_0.my_turn = 0
                     current_state_game_info_agent_1.my_turn = 1
+                    current_state_game_info_agent_0.my_score, current_state_game_info_agent_0.enemy_score = \
+                        current_state_game_info_agent_0.enemy_score, current_state_game_info_agent_0.my_score
 
                 # Store chip info (row, col, value) in a list
                 placed_chip_info = [row, col, value]
@@ -396,7 +410,7 @@ class Environment:
                 # And update graph with next board states
                 for (combination, next_board_state) in zip(combinations, next_board_states):
                     agent_score = agent.get_next_state_score_after_taking(self.board, combination, row, col)
-                    chips_left = agent.get_next_state_chips_left_after_taking(self.board, len(self.container.chips),
+                    chips_left = agent.get_next_state_chips_left_after_taking(self.board, len(self.container.chips)-1,
                                                                               combination, row, col)
                     # Construct game info (my_turn, my_score, enemy_score, chips_left)
                     if turn == 0:
