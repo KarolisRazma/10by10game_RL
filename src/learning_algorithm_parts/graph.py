@@ -150,8 +150,8 @@ class Graph:
             combination=updated_action, last_placed_chip=last_placed_chip
         )
 
-    # GET VERTEX
-    def find_game_state(self, board_values, game_info):
+    # Returns dict with node's info
+    def find_game_state(self, game_info):
         result = self.session.run(
             """ 
             MATCH (g:GameState {
@@ -162,11 +162,11 @@ class Graph:
             chips_left: $chips_left})
             RETURN g
             """,
-            board_values=board_values, turn=game_info.my_turn, my_score=game_info.my_score,
+            board_values=game_info.board_values, turn=game_info.my_turn, my_score=game_info.my_score,
             enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
         )
         record = result.single(strict=True)
-        return record
+        return record.data()['g']
 
     # GET GIVEN VERTEX NEXT VERTICES
     # Returns StateInfo object
@@ -268,39 +268,23 @@ class Graph:
                 n_my_score=next_state_game_info.my_score, n_enemy_score=next_state_game_info.enemy_score,
                 n_chips_left=next_state_game_info.chips_left,
             )
-            # USE THIS LATER
-            ########################
             record = result.single(strict=True).data()
             combination = record['r.combination']
-            ########################
-
-            # DELETE THIS LATER
-            ########################
-            # records = list(result)
-            # if len(records) > 1:
-            #     print(f'Before: {parent_state_values}')
-            #     print(f'After: {child_state_values}')
-            #     print("Comb")
-            #     for record in records:
-            #         print(record.data()['r.combination'])
-            #         print(record.data()['r.placed_chip'])
-            # combination = records[0].data()['r.combination']
-            ########################
 
             # RETURNS list of chips row/col/value to remove
             return combination
 
     # RETURNS BOARD VALUES OF ALL VERTICES
     def get_everything(self):
-        result = self.session.run("MATCH (bs:BoardState) RETURN bs.board_values AS board_values")
+        result = self.session.run("MATCH (g:GameState) RETURN g.board_values AS board_values")
         records = list(result)  # a list of Record objects
         return records
 
     # RETURNS TRUE IF VERTEX IS FOUND
     def is_vertex_found(self, board_values):
         result = self.session.run(
-            """ MATCH (boardState:BoardState {board_values: $board_values})
-                WITH COUNT(boardState) > 0  as node_exists
+            """ MATCH (g:GameState {board_values: $board_values})
+                WITH COUNT(g) > 0  as node_exists
                 RETURN node_exists
             """, board_values=board_values
         )
@@ -312,3 +296,21 @@ class Graph:
         query_2 = """ MATCH (a) DELETE a """
         self.session.run(query_1)
         self.session.run(query_2)
+
+    # Updates state value with new value given
+    def update_state_value(self, state_value, state_info):
+        self.session.run(
+            """
+            MATCH (g:GameState {
+            board_values: $board_values,
+            my_turn: $turn,
+            my_score: $my_score,
+            enemy_score: $enemy_score,
+            chips_left: $chips_left})
+            SET g.state_value = $state_value
+            """,
+            board_values=state_info.board_values, turn=state_info.my_turn,
+            my_score=state_info.my_score, enemy_score=state_info.enemy_score,
+            chips_left=state_info.chips_left, state_value=state_value
+        )
+

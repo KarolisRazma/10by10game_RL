@@ -8,7 +8,6 @@ import src.game_components.board as board
 import src.game_components.color as clr
 import src.game_components.chip as cp
 import src.game_components.container as container
-import src.game_components.actions.placing_action as pan
 
 import src.learning_algorithm_parts.state_info as sti
 
