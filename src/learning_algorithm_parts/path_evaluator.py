@@ -21,10 +21,12 @@ class PathEvaluator:
         # From Path END -> To Path START
         while path_length != 0:
             state_info = self.path.state_info_list[path_length - 1]
-            node = graph.find_game_state(state_info)
 
             # Store current state value in a var
-            current_node_value = node['state_value']
+            current_node_value = state_info.state_value
+            if current_node_value is None:
+                current_node_value = 0.0
+                state_info.state_value = 0.0
 
             # Calculate new value
             new_node_value = self.learning.calc_new_state_value(graph=graph, is_game_won=is_game_won,

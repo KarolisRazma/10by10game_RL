@@ -4,3 +4,9 @@ virsune:
     - my_score : [0;n]
     - enemy_score : [0;n]
     - agent_turn : [my;enemy]
+
+# NEW DATA
+# 100 episodes -> 241.22 seconds
+# after 120 games nodes generated
+# 100 episodes -> 274 seconds
+# after another 100 episodes -> 473 seconds

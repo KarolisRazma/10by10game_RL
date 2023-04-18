@@ -27,15 +27,10 @@ class Graph:
         self.session = session
 
     def add_root(self, board_values, game_info):
-        # Check if node exists
-        if self.is_vertex_found(game_info):
-            return
-
         self.session.run(
             """
             MERGE (:GameState {
             board_values: $values,
-            state_value: 0.0,
             my_turn: $my_turn,
             my_score: $my_score,
             enemy_score: $enemy_score,
@@ -70,16 +65,11 @@ class Graph:
     # next_state_game_info --> StateInfo instance, holding new possible information about the game
     def add_game_state(self, current_state_values, next_state_values,
                        action_type, action, last_placed_chip, current_state_game_info, next_state_game_info):
-        # Check if node exists
-        if self.is_vertex_found(next_state_game_info):
-            return
-
-        # Create new game state
+        # Try to create new game state
         self.session.run(
             """
             MERGE (:GameState {
             board_values: $board_values,
-            state_value: 0.0,
             my_turn: $turn,
             my_score: $my_score,
             enemy_score: $enemy_score,
@@ -158,7 +148,7 @@ class Graph:
             combination=updated_action, last_placed_chip=last_placed_chip
         )
 
-    # Returns dict with node's info
+    # Returns StateInfo object
     def find_game_state(self, game_info):
         result = self.session.run(
             """ 
@@ -173,8 +163,27 @@ class Graph:
             board_values=game_info.board_values, turn=game_info.my_turn, my_score=game_info.my_score,
             enemy_score=game_info.enemy_score, chips_left=game_info.chips_left,
         )
-        record = result.single(strict=True)
-        return record.data()['g']
+        # Simplify dict
+        record = (result.single(strict=True)).data()['g']
+
+        # Create StateInfo
+        board_values = record['board_values']
+        my_turn = record['my_turn']
+        my_score = record['my_score']
+        enemy_score = record['enemy_score']
+        chips_left = record['chips_left']
+        state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+
+        # Check if state value is set in the database
+        if 'state_value' in record.keys():
+            state_value = record['state_value']
+        else:
+            state_value = None
+
+        # Set it to the StateInfo object
+        state_info.state_value = state_value
+
+        return state_info
 
     # GET GIVEN VERTEX NEXT VERTICES
     # Returns StateInfo object
@@ -224,14 +233,26 @@ class Graph:
         records = list(result)
         updated_records = []
         for record in records:
-            board_values = record.data()['c']['board_values']
-            my_turn = record.data()['c']['my_turn']
-            my_score = record.data()['c']['my_score']
-            enemy_score = record.data()['c']['enemy_score']
-            chips_left = record.data()['c']['chips_left']
-            state_value = record.data()['c']['state_value']
+            # Simplify dict
+            record = record.data()['c']
+
+            # Create StateInfo
+            board_values = record['board_values']
+            my_turn = record['my_turn']
+            my_score = record['my_score']
+            enemy_score = record['enemy_score']
+            chips_left = record['chips_left']
             state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+
+            # Check if state value is set in the database
+            if 'state_value' in record.keys():
+                state_value = record['state_value']
+            else:
+                state_value = None
+
+            # Set it to the StateInfo object
             state_info.state_value = state_value
+
             updated_records.append(state_info)
         return updated_records
 
@@ -352,6 +373,12 @@ class Graph:
         next_vertices_info = self.find_game_state_next_vertices(action_type='any',
                                                                 current_state_values=current_state_info.board_values,
                                                                 game_info=current_state_info)
+        # Find None values
+        for vertex_info in next_vertices_info:
+            if vertex_info.state_value is None:
+                # Transfer None to 0.0 value
+                vertex_info.state_value = 0.0
+
         # Find max out of these next vertices
         return (max(next_vertices_info, key=lambda x: x.state_value)).state_value
 
