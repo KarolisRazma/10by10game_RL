@@ -27,7 +27,7 @@ def use_cli(env, path_evaluator, agent_0, agent_1, options):
             start = time.time()
             for i in range(episodes):
                 # Play episode
-                env.start_episode_with_graph_db()
+                env.start_episode()
                 # Evaluate round
                 # Some evaluation happens here
 

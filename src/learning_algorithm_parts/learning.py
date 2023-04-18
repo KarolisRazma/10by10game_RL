@@ -4,6 +4,10 @@ class RLearning:
         self.discount_rate = 0.75  # gamma in math
         self.learning_rate = 0.9  # alpha in math
 
+        # Probability distributions
+        self.take_best_node = 0.75
+        self.take_random_node = 0.25
+
     def calc_new_state_value(self, graph, is_game_won, current_state_info, current_state_value, step_counter):
         # TODO what value should I assign if it's top of the path?
         if step_counter > 1:
