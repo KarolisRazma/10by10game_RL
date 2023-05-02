@@ -1,11 +1,8 @@
-import src.learning_algorithm_parts.learning as lg
-
-
 class PathEvaluator:
     # field path stores Path object
-    def __init__(self):
+    def __init__(self, learning):
         self.path = None
-        self.learning = lg.RLearning()
+        self.learning = learning
 
     # argument path is Path object
     def set_path(self, path):

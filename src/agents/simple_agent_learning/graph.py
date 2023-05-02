@@ -1,5 +1,5 @@
-import src.game_components.actions.placing_action as pan
-import src.learning_algorithm_parts.state_info as sti
+import src.agents.actions.placing_action as pan
+import src.agents.simple_agent_learning.state_info as sti
 
 
 # Structure of the graph
@@ -381,5 +381,23 @@ class Graph:
 
         # Find max out of these next vertices
         return (max(next_vertices_info, key=lambda x: x.state_value)).state_value
+
+    # Same as find find_maximum_state_value method,
+    # But returns list of StateInfo objects sorted by state_value in descending order
+    def get_best_states_list(self, current_state_info):
+        next_vertices_info = self.find_game_state_next_vertices(action_type='any',
+                                                                current_state_values=current_state_info.board_values,
+                                                                game_info=current_state_info)
+        # Find None values
+        for vertex_info in next_vertices_info:
+            if vertex_info.state_value is None:
+                # Transfer None to 0.0 value
+                vertex_info.state_value = 0.0
+
+        next_vertices_info.sort(key=lambda x: x.state_value, reverse=True)
+        return next_vertices_info
+
+
+
 
 

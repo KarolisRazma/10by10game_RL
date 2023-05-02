@@ -1,12 +1,36 @@
-virsune:
-    - board_values : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    - value : [0;1]
-    - my_score : [0;n]
-    - enemy_score : [0;n]
-    - agent_turn : [my;enemy]
 
-# NEW DATA
-# 100 episodes -> 241.22 seconds
-# after 120 games nodes generated
-# 100 episodes -> 274 seconds
-# after another 100 episodes -> 473 seconds
+CRITICAL
+- Baseline
+- Ejimu pasirinkimas
+
+IMPORTANT
+- Branch&Bound metoda pasiziureti, kaip galima butu taikyti pas mane grafe
+- Atmetineti sakas, kurios yra labai nesekmingos (keliu simtu zaidimu, 2/3 pralaimejimu)
+- Saugoti kiek kartu patekta i tam tikra virsune
+- Saugoti, kiek kartu buvo patekimas i busena su pergale/pralaimejimu/
+
+IMPROVEMENT
+- Vizualizuoti zaidima
+
+
+Brute Force agentas:
+- neturi grafo
+- neissisaugo kelio
+- nesimoko
+- renkasi ejimus visiskai random
+- apsiriboja game loop'o vykdymu su random ejimo pasirinkimu
+
+Simple agentas:
+- turi grafa (pradine versija)
+- renkasi ejimus pagal duota procenta
+
+Improved agentas:
+- to be added
+
+
+
+
+
+
+
+
