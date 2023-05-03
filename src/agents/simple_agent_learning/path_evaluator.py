@@ -34,6 +34,9 @@ class PathEvaluator:
             # Update Graph
             graph.update_state_value(new_node_value, state_info)
 
+            # Update self.path
+            state_info.state_value = new_node_value
+
             # Decrease path len and increase step counter
             path_length -= 1
             step_counter += 1

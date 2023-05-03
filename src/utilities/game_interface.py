@@ -17,6 +17,7 @@ import src.agents.simple_agent as sag
 
 # Misc
 import time
+import src.utilities.path_notator as notator
 
 
 # Database
@@ -144,9 +145,18 @@ class GameInterface:
 
                 # Evaluate SimpleAgent paths
                 if isinstance(self.environment.agents[0], sag.SimpleAgent):
-                    self.environment.agents[0].eval_path_after_episode()
+                    agent = self.environment.agents[0]
+                    agent.eval_path_after_episode()
+                    pathstring = notator.notate_path_simple(agent.last_episode_path)
+                    filename = notator.FILENAME_SIMPLE_AGENT_1 if agent.id == "Simple Agent 1" else notator.FILENAME_SIMPLE_AGENT_2
+                    notator.dump_pathstring_into_log(pathstring, filename)
+
                 if isinstance(self.environment.agents[1], sag.SimpleAgent):
-                    self.environment.agents[1].eval_path_after_episode()
+                    agent = self.environment.agents[1]
+                    agent.eval_path_after_episode()
+                    pathstring = notator.notate_path_simple(agent.last_episode_path)
+                    filename = notator.FILENAME_SIMPLE_AGENT_2 if agent.id == "Simple Agent 2" else notator.FILENAME_SIMPLE_AGENT_1
+                    notator.dump_pathstring_into_log(pathstring, filename)
             end = time.time()
             print(f'\n')
             print(f'Time elapsed: {end - start}')
