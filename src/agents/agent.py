@@ -13,6 +13,9 @@ class Agent:
         self.wins = 0
         self.draws = 0
 
+        self.is_last_game_won = None
+        self.is_last_game_drawn = None
+
         # Agent's possible actions at given position
         self.actions = []
 

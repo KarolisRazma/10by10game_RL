@@ -1,7 +1,9 @@
 # Database
 from neo4j import GraphDatabase
-import src.agents.simple_agent_learning.graph as gh
-import src.agents.simple_agent_learning.learning as lg
+import src.agents.simple_agent_learning.graph as sgh
+import src.agents.improved_agent_learning.graph as igh
+import src.agents.simple_agent_learning.learning as slg
+import src.agents.improved_agent_learning.learning as ilg
 
 # Environment
 import src.environment as e
@@ -14,6 +16,7 @@ import src.utilities.game_interface_constants as int_c
 # Agents
 import src.agents.brute_force_agent as bfag
 import src.agents.simple_agent as sag
+import src.agents.improved_agent as iag
 
 # Misc
 import time
@@ -31,8 +34,12 @@ driver.verify_connectivity()
 # And get Graphs for agents
 session_simple_agent_1 = driver.session(database="simpleagent1")
 session_simple_agent_2 = driver.session(database="simpleagent2")
-graph_simple_agent_1 = gh.Graph(driver, session_simple_agent_1)
-graph_simple_agent_2 = gh.Graph(driver, session_simple_agent_2)
+session_improved_agent_1 = driver.session(database="improvedagent1")
+session_improved_agent_2 = driver.session(database="improvedagent2")
+graph_simple_agent_1 = sgh.Graph(driver, session_simple_agent_1)
+graph_simple_agent_2 = sgh.Graph(driver, session_simple_agent_2)
+graph_improved_agent_1 = igh.Graph(driver, session_improved_agent_1)
+graph_improved_agent_2 = igh.Graph(driver, session_improved_agent_2)
 
 
 class GameInterface:
@@ -48,26 +55,34 @@ class GameInterface:
                                              c5x5.score_to_win)
 
         # Agents creation
-        self.brute_force_agent_1 = bfag.BruteForceAgent("Brute Force Agent 1")
-        self.brute_force_agent_2 = bfag.BruteForceAgent("Brute Force Agent 2")
-        self.simple_agent_1 = sag.SimpleAgent("Simple Agent 1", graph_simple_agent_1, learning_algorithm=lg.RLearning(),
-                                              explore_rate=0.5)
-        self.simple_agent_2 = sag.SimpleAgent("Simple Agent 2", graph_simple_agent_2, learning_algorithm=lg.RLearning(),
-                                              explore_rate=0.5)
+        self.brute_force_agent_1 = bfag.BruteForceAgent(int_c.BRUTE_1)
+        self.brute_force_agent_2 = bfag.BruteForceAgent(int_c.BRUTE_2)
+        self.simple_agent_1 = sag.SimpleAgent(int_c.SIMPLE_1, graph_simple_agent_1,
+                                              learning_algorithm=slg.RLearning(), explore_rate=0.5)
+        self.simple_agent_2 = sag.SimpleAgent(int_c.SIMPLE_2, graph_simple_agent_2,
+                                              learning_algorithm=slg.RLearning(), explore_rate=0.5)
+        self.improved_agent_1 = iag.ImprovedAgent(int_c.IMPROVED_1, graph_improved_agent_1, ilg.RLearning())
+        self.improved_agent_2 = iag.ImprovedAgent(int_c.IMPROVED_2, graph_improved_agent_2, ilg.RLearning())
 
         # Initial options list
         self.initial_options = [int_c.SET_AGENTS, int_c.RUN_EPISODES, int_c.DELETE_AGENT_GRAPHS, int_c.EXIT]
 
         # Agent vs Agent pairs list
         self.agents_pairs_options = [int_c.BRUTE_VS_BRUTE, int_c.SIMPLE_AGENT_1_VS_BRUTE, int_c.SIMPLE_AGENT_2_VS_BRUTE,
-                                     int_c.SIMPLE_AGENT_1_VS_SIMPLE_AGENT_2, int_c.RETURN]
+                                     int_c.IMPROVED_AGENT_1_VS_BRUTE, int_c.IMPROVED_AGENT_2_VS_BRUTE,
+                                     int_c.SIMPLE_AGENT_1_VS_SIMPLE_AGENT_2, int_c.IMPROVED_AGENT_1_VS_SIMPLE_AGENT_1,
+                                     int_c.IMPROVED_AGENT_1_VS_SIMPLE_AGENT_2, int_c.IMPROVED_AGENT_2_VS_SIMPLE_AGENT_1,
+                                     int_c.IMPROVED_AGENT_2_VS_SIMPLE_AGENT_2,
+                                     int_c.IMPROVED_AGENT_1_VS_IMPROVED_AGENT_2, int_c.RETURN]
 
         # Start episode options list
         self.start_episode_options = [int_c.START_1, int_c.START_10, int_c.START_100, int_c.START_N, int_c.RETURN]
 
         # Delete agent's graphs options list
         self.graphs_deletion_options = [int_c.DELETE_SIMPLE_AGENT_1_GRAPH, int_c.DELETE_SIMPLE_AGENT_2_GRAPH,
-                                        int_c.DELETE_SIMPLE_AGENT_GRAPHS, int_c.RETURN]
+                                        int_c.DELETE_SIMPLE_AGENT_GRAPHS, int_c.DELETE_IMPROVED_AGENT_1_GRAPH,
+                                        int_c.DELETE_IMPROVED_AGENT_2_GRAPH, int_c.DELETE_IMPROVED_AGENT_GRAPHS,
+                                        int_c.DELETE_EVERYTHING, int_c.RETURN]
 
     @staticmethod
     def display_options(options):
@@ -112,9 +127,37 @@ class GameInterface:
                 self.environment.set_agent(self.brute_force_agent_1)
             elif choice == 4:
                 self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_1)
+                self.environment.set_agent(self.brute_force_agent_1)
+            elif choice == 5:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_2)
+                self.environment.set_agent(self.brute_force_agent_1)
+            elif choice == 6:
+                self.environment.clear_agents()
                 self.environment.set_agent(self.simple_agent_1)
                 self.environment.set_agent(self.simple_agent_2)
-            elif choice == 5:
+            elif choice == 7:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_1)
+                self.environment.set_agent(self.simple_agent_1)
+            elif choice == 8:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_1)
+                self.environment.set_agent(self.simple_agent_2)
+            elif choice == 9:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_2)
+                self.environment.set_agent(self.simple_agent_1)
+            elif choice == 10:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_2)
+                self.environment.set_agent(self.simple_agent_2)
+            elif choice == 11:
+                self.environment.clear_agents()
+                self.environment.set_agent(self.improved_agent_1)
+                self.environment.set_agent(self.improved_agent_2)
+            elif choice == 12:
                 break
             else:
                 print(int_c.INVALID_OPTION)
@@ -143,20 +186,40 @@ class GameInterface:
                 # Play episode
                 self.environment.start_episode()
 
-                # Evaluate SimpleAgent paths
+                # Evaluate SimpleAgent path
                 if isinstance(self.environment.agents[0], sag.SimpleAgent):
                     agent = self.environment.agents[0]
                     agent.eval_path_after_episode()
                     pathstring = notator.notate_path_simple(agent.last_episode_path)
-                    filename = notator.FILENAME_SIMPLE_AGENT_1 if agent.id == "Simple Agent 1" else notator.FILENAME_SIMPLE_AGENT_2
+                    filename = notator.FILENAME_SIMPLE_AGENT_1 if agent.id == int_c.SIMPLE_1\
+                        else notator.FILENAME_SIMPLE_AGENT_2
+                    notator.dump_pathstring_into_log(pathstring, filename)
+                # Evaluate ImprovedAgent path
+                elif isinstance(self.environment.agents[0], iag.ImprovedAgent):
+                    agent = self.environment.agents[0]
+                    agent.eval_path_after_episode()
+                    pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    filename = notator.FILENAME_IMPROVED_AGENT_1 if agent.id == int_c.IMPROVED_1\
+                        else notator.FILENAME_IMPROVED_AGENT_2
                     notator.dump_pathstring_into_log(pathstring, filename)
 
+                # Evaluate SimpleAgent path
                 if isinstance(self.environment.agents[1], sag.SimpleAgent):
                     agent = self.environment.agents[1]
                     agent.eval_path_after_episode()
                     pathstring = notator.notate_path_simple(agent.last_episode_path)
-                    filename = notator.FILENAME_SIMPLE_AGENT_2 if agent.id == "Simple Agent 2" else notator.FILENAME_SIMPLE_AGENT_1
+                    filename = notator.FILENAME_SIMPLE_AGENT_2 if agent.id == int_c.SIMPLE_2\
+                        else notator.FILENAME_SIMPLE_AGENT_1
                     notator.dump_pathstring_into_log(pathstring, filename)
+                # Evaluate ImprovedAgent path
+                elif isinstance(self.environment.agents[1], iag.ImprovedAgent):
+                    agent = self.environment.agents[1]
+                    agent.eval_path_after_episode()
+                    pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    filename = notator.FILENAME_IMPROVED_AGENT_2 if agent.id == int_c.IMPROVED_2\
+                        else notator.FILENAME_IMPROVED_AGENT_1
+                    notator.dump_pathstring_into_log(pathstring, filename)
+
             end = time.time()
             print(f'\n')
             print(f'Time elapsed: {end - start}')
@@ -177,6 +240,18 @@ class GameInterface:
                 self.simple_agent_1.graph.delete_everything()
                 self.simple_agent_2.graph.delete_everything()
             elif choice == 4:
+                self.improved_agent_1.graph.delete_everything()
+            elif choice == 5:
+                self.improved_agent_2.graph.delete_everything()
+            elif choice == 6:
+                self.improved_agent_1.graph.delete_everything()
+                self.improved_agent_2.graph.delete_everything()
+            elif choice == 7:
+                self.simple_agent_1.graph.delete_everything()
+                self.simple_agent_2.graph.delete_everything()
+                self.improved_agent_1.graph.delete_everything()
+                self.improved_agent_2.graph.delete_everything()
+            elif choice == 8:
                 break
             else:
                 print(int_c.INVALID_OPTION)

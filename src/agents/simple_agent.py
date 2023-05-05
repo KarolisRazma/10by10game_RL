@@ -13,7 +13,7 @@ class SimpleAgent(ag.Agent):
     # @param nickname               --> agent's id
     # @param graph                  --> neoj4 graph
     # @param learning_algorithm     --> class RLearning object
-    # @param randompick_rate        --> probability of doing random action
+    # @param explore_rate           --> probability of doing random action
 
     def __init__(self, nickname, graph, learning_algorithm, explore_rate):
         # Init Agent superclass
@@ -68,7 +68,10 @@ class SimpleAgent(ag.Agent):
         self.current_state_info = sti.StateInfo(board_values=initial_board_values, my_turn=self.agent_number,
                                                 my_score=0, enemy_score=0, chips_left=chips_left)
         self.graph.add_root(initial_board_values, self.current_state_info)
-        self.last_episode_path.state_info_list.append(self.current_state_info)
+        # With state_value property if is exists
+        full_state_info = self.graph.find_game_state(self.current_state_info)
+        self.current_state_info = full_state_info
+        self.last_episode_path.state_info_list.append(full_state_info)
 
     # Process every possible new next state from current state (try to add it to database)
     def process_new_placing_actions(self, current_board_values, enemy_agent_score,

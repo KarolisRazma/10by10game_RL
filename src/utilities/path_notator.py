@@ -40,7 +40,6 @@ def notate_path_improved(path):
         enemy_score = str(state.enemy_score)
         chips_left = str(state.chips_left)
         state_value = str(state.state_value)
-        chips_in_hand = ''.join(str(i) for i in state.chips_in_hand)
         times_visited = str(state.times_visited)
         win_counter = str(state.win_counter)
         lose_counter = str(state.lose_counter)
@@ -48,7 +47,7 @@ def notate_path_improved(path):
 
         state_to_string = str(state_counter) + "." + SEPARATOR + board_values + SEPARATOR + my_turn + SEPARATOR + \
                           my_score + SEPARATOR + enemy_score + SEPARATOR + chips_left + SEPARATOR + state_value + \
-                          SEPARATOR + chips_in_hand + SEPARATOR + times_visited + SEPARATOR + win_counter + \
+                          SEPARATOR + times_visited + SEPARATOR + win_counter + \
                           SEPARATOR + lose_counter + SEPARATOR + draw_counter + " "
         state_counter += 1
         path_to_string += state_to_string

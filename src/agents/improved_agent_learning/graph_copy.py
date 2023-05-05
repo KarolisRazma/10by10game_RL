@@ -8,6 +8,7 @@ import src.agents.improved_agent_learning.state_info as sti
 #   property: state_value
 #   property: my_turn
 #   property: my_score
+#   property: chips_in_hand
 #   property: enemy_score
 #   property: chips_left
 #   property: times_visited
@@ -40,17 +41,18 @@ class Graph:
 
     # @argument state_info             --> StateInfo object
     def add_game_state(self, state_info):
-        self.session.run(
+        self.session(
             """
             MERGE (:GameState {
             board_values: $b_v,
             my_turn: $m_t,
             my_score: $m_s,
             enemy_score: $e_s,
-            chips_left: $c_l})
+            chips_left: $c_l,
+            chips_in_hand: $c_i_h})
             """,
             b_v=state_info.board_values, m_t=state_info.my_turn, m_s=state_info.my_score,
-            e_s=state_info.enemy_score, c_l=state_info.chips_left
+            e_s=state_info.enemy_score, c_l=state_info.chips_left, c_i_h=state_info.chips_in_hand
         )
 
     # @argument current_state_info          --> StateInfo object
@@ -64,21 +66,23 @@ class Graph:
             my_turn: $c_turn,
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
-            chips_left: $c_chips_left})           
+            chips_left: $c_chips_left,
+            chips_in_hand: $cc_i_h})           
             MERGE (next:GameState {
             board_values: $n_board_values,
             my_turn: $n_turn,
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
-            chips_left: $n_chips_left})
+            chips_left: $n_chips_left,
+            chips_in_hand: $nc_i_h})
             MERGE (curr)-[:NEXT_PLACING {row: $row, col: $col, value: $value}]->(next) 
             """,
             c_board_values=current_state_info.board_values, c_turn=current_state_info.my_turn,
             c_my_score=current_state_info.my_score, c_enemy_score=current_state_info.enemy_score,
-            c_chips_left=current_state_info.chips_left,
+            c_chips_left=current_state_info.chips_left, cc_i_h=current_state_info.chips_in_hand,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, nc_i_h=next_state_info.chips_in_hand,
             row=action.row, col=action.col, value=action.value
         )
 
@@ -86,9 +90,9 @@ class Graph:
     # @argument next_state_info             --> StateInfo object
     # @argument action                      --> list of Chip objects
     # @argument last_placed_chip            --> list of ints [row, col, value]
-    def make_taking_rel(self, current_state_info, next_state_info, combination, last_placed_chip):
+    def make_taking_rel(self, current_state_info, next_state_info, action, last_placed_chip):
         updated_action = []
-        for chip in combination:
+        for chip in action:
             updated_action.append(chip.row)
             updated_action.append(chip.col)
             updated_action.append(chip.value)
@@ -100,26 +104,29 @@ class Graph:
             my_turn: $c_turn,
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
-            chips_left: $c_chips_left})
+            chips_left: $c_chips_left,
+            chips_in_hand: $cc_i_h})
             MERGE (next:GameState {
             board_values: $n_board_values,
             my_turn: $n_turn,
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
-            chips_left: $n_chips_left})
+            chips_left: $n_chips_left,
+            chips_in_hand: $nc_i_h})
             MERGE (curr)-[:NEXT_TAKING {combination: $combination, last_placed_chip: $last_placed_chip}]->(next) 
             """,
             c_board_values=current_state_info.board_values, c_turn=current_state_info.my_turn,
             c_my_score=current_state_info.my_score, c_enemy_score=current_state_info.enemy_score,
-            c_chips_left=current_state_info.chips_left,
+            c_chips_left=current_state_info.chips_left, cc_i_h=current_state_info.chips_in_hand,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, nc_i_h=next_state_info.chips_in_hand,
             combination=updated_action, last_placed_chip=last_placed_chip
         )
 
     # It updates state value and counters
-    def update_node_after_episode(self, state_info):
+    def update_node_after_episode(self, state_info, state_value, times_visited,
+                                  win_counter, lose_counter, draw_counter):
         self.session.run(
             """
             MATCH (g:GameState {
@@ -127,7 +134,8 @@ class Graph:
             my_turn: $turn,
             my_score: $my_score,
             enemy_score: $enemy_score,
-            chips_left: $chips_left})
+            chips_left: $chips_left,
+            chips_in_hand: $c_i_h})
             SET g.state_value = $state_value
             SET g.times_visited = $times_visited
             SET g.win_counter = $win_counter
@@ -136,9 +144,8 @@ class Graph:
             """,
             board_values=state_info.board_values, turn=state_info.my_turn,
             my_score=state_info.my_score, enemy_score=state_info.enemy_score,
-            chips_left=state_info.chips_left, state_value=state_info.state_value,
-            times_visited=state_info.times_visited, win_counter=state_info.win_counter,
-            lose_counter=state_info.lose_counter, draw_counter=state_info.draw_counter
+            chips_left=state_info.chips_left, state_value=state_value, c_i_h=state_info.chips_in_hand,
+            times_visited=times_visited, win_counter=win_counter, lose_counter=lose_counter, draw_counter=draw_counter
         )
 
     def find_next_placing_action(self, current_state_info, next_state_info):
@@ -149,21 +156,23 @@ class Graph:
             my_turn: $c_turn,
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
-            chips_left: $c_chips_left})
+            chips_left: $c_chips_left,
+            chips_in_hand: $cc_i_h})
             -[r]->(:GameState {
             board_values: $n_board_values,
             my_turn: $n_turn,
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
-            chips_left: $n_chips_left})
+            chips_left: $n_chips_left,
+            chips_in_hand: $nc_i_h})
             RETURN r.row, r.col, r.value
             """,
             c_board_values=current_state_info.board_values, c_turn=current_state_info.my_turn,
             c_my_score=current_state_info.my_score, c_enemy_score=current_state_info.enemy_score,
-            c_chips_left=current_state_info.chips_left,
+            c_chips_left=current_state_info.chips_left, cc_i_h=current_state_info.chips_in_hand,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, nc_i_h=next_state_info.chips_in_hand,
         )
         record = result.single(strict=True).data()
         row = int(record['r.row'])
@@ -179,22 +188,24 @@ class Graph:
             my_turn: $c_turn,
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
-            chips_left: $c_chips_left})
+            chips_left: $c_chips_left,
+            chips_in_hand: $cc_i_h})
             -[r {last_placed_chip: $last_placed_chip}]->(:GameState {
             board_values: $n_board_values,
             my_turn: $n_turn,
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
-            chips_left: $n_chips_left})
+            chips_left: $n_chips_left,
+            chips_in_hand: $nc_i_h})
             RETURN r.combination
             """,
             last_placed_chip=last_placed_chip,
             c_board_values=current_state_info.board_values, c_turn=current_state_info.my_turn,
             c_my_score=current_state_info.my_score, c_enemy_score=current_state_info.enemy_score,
-            c_chips_left=current_state_info.chips_left,
+            c_chips_left=current_state_info.chips_left, cc_i_h=current_state_info.chips_in_hand,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, nc_i_h=next_state_info.chips_in_hand,
         )
         record = result.single(strict=True).data()
         combination = record['r.combination']
@@ -210,11 +221,12 @@ class Graph:
             my_turn: $turn,
             my_score: $my_score,
             enemy_score: $enemy_score,
-            chips_left: $chips_left})
+            chips_left: $chips_left,
+            chips_in_hand: $c_i_h})
             RETURN g
             """,
             board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-            enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
+            enemy_score=state_info.enemy_score, chips_left=state_info.chips_left, c_i_h=state_info.chips_in_hand
         )
         # Simplify dict
         record = (result.single(strict=True)).data()['g']
@@ -225,7 +237,11 @@ class Graph:
         my_score = record['my_score']
         enemy_score = record['enemy_score']
         chips_left = record['chips_left']
+        chips_in_hand = record['chips_in_hand']
         state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+
+        # Set chips_in_hand
+        state_info.chips_in_hand = chips_in_hand
 
         # Check if state value is set in the database
         if 'state_value' in record.keys():
@@ -275,11 +291,12 @@ class Graph:
                 my_turn: $turn,
                 my_score: $my_score,
                 enemy_score: $enemy_score,
-                chips_left: $chips_left})-[:NEXT_PLACING]->(c:GameState)
+                chips_left: $chips_left,
+                chips_in_hand: $c_i_h})-[:NEXT_PLACING]->(c:GameState)
                 RETURN c
                 """,
                 board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
+                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left, c_i_h=state_info.chips_in_hand
             )
         if action_type == 'taking':
             result = self.session.run(
@@ -289,11 +306,12 @@ class Graph:
                 my_turn: $turn,
                 my_score: $my_score,
                 enemy_score: $enemy_score,
-                chips_left: $chips_left})-[:NEXT_TAKING]->(c:GameState)
+                chips_left: $chips_left,
+                chips_in_hand: $c_i_h})-[:NEXT_TAKING]->(c:GameState)
                 RETURN c
                 """,
                 board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
+                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left, c_i_h=state_info.chips_in_hand
             )
         if action_type == 'any':
             result = self.session.run(
@@ -303,11 +321,12 @@ class Graph:
                 my_turn: $turn,
                 my_score: $my_score,
                 enemy_score: $enemy_score,
-                chips_left: $chips_left})-->(c:GameState)
+                chips_left: $chips_left,
+                chips_in_hand: $c_i_h})-->(c:GameState)
                 RETURN c
                 """,
                 board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
+                enemy_score=state_info.enemy_score, chips_left=state_info.chips_left, c_i_h=state_info.chips_in_hand
             )
         records = list(result)
         updated_records = []
@@ -321,7 +340,11 @@ class Graph:
             my_score = record['my_score']
             enemy_score = record['enemy_score']
             chips_left = record['chips_left']
+            chips_in_hand = record['chips_in_hand']
             state_info = sti.StateInfo(board_values, my_turn, my_score, enemy_score, chips_left)
+
+            # Set chips_in_hand
+            state_info.chips_in_hand = chips_in_hand
 
             # Check if state value is set in the database
             if 'state_value' in record.keys():
@@ -364,16 +387,10 @@ class Graph:
             updated_records.append(state_info)
         return updated_records
 
-    # Returns list of StateInfo objects sorted by state_value in descending order
-    def get_best_states_list(self, current_state_info):
-        next_states = self.find_game_state_next_vertices(action_type='any', state_info=current_state_info)
-        next_states.sort(key=lambda x: x.state_value, reverse=True)
-        return next_states
+    def get_best_state(self, current_state_info):
+        return max(self.find_game_state_next_vertices(action_type='any', state_info=current_state_info),
+                   key=lambda x: x.state_value)
 
-    def find_maximum_state_value(self, current_state_info):
-        next_states = self.find_game_state_next_vertices(action_type='any', state_info=current_state_info)
-        # Find max, out of these next states
-        return (max(next_states, key=lambda x: x.state_value)).state_value
 
 
 
