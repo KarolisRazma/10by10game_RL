@@ -10,7 +10,6 @@ SEPARATOR = "/"
 
 def notate_path_simple(path):
     states = copy.deepcopy(path.state_info_list)
-    states.reverse()
     state_counter = 1
     path_to_string = ""
     for state in states:
@@ -19,18 +18,17 @@ def notate_path_simple(path):
         my_score = str(state.my_score)
         enemy_score = str(state.enemy_score)
         chips_left = str(state.chips_left)
-        state_value = str(state.state_value)
+        state_value = str(format(state.state_value, '.4f'))
 
         state_to_string = str(state_counter) + "." + SEPARATOR + board_values + SEPARATOR + my_turn + SEPARATOR + \
                           my_score + SEPARATOR + enemy_score + SEPARATOR + chips_left + SEPARATOR + state_value + " "
         state_counter += 1
         path_to_string += state_to_string
-    return path_to_string
+    return path_to_string + '\n'
 
 
 def notate_path_improved(path):
     states = copy.deepcopy(path.state_info_list)
-    states.reverse()
     state_counter = 1
     path_to_string = ""
     for state in states:
@@ -39,7 +37,7 @@ def notate_path_improved(path):
         my_score = str(state.my_score)
         enemy_score = str(state.enemy_score)
         chips_left = str(state.chips_left)
-        state_value = str(state.state_value)
+        state_value = str(format(state.state_value, '.4f'))
         times_visited = str(state.times_visited)
         win_counter = str(state.win_counter)
         lose_counter = str(state.lose_counter)
@@ -51,7 +49,7 @@ def notate_path_improved(path):
                           SEPARATOR + lose_counter + SEPARATOR + draw_counter + " "
         state_counter += 1
         path_to_string += state_to_string
-    return path_to_string
+    return path_to_string + '\n'
 
 
 def dump_pathstring_into_log(pathstring, filename):

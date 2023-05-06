@@ -57,7 +57,7 @@ class ImprovedAgent(ag.Agent):
         initial_state = sti.StateInfo(board_values=initial_board_values, my_turn=self.agent_number, my_score=0,
                                       enemy_score=0, chips_left=chips_left)
         # Add to db
-        self.graph.add_game_state(initial_state)
+        self.graph.add_game_state(initial_state, is_initial_state=True)
         initial_state_updated = self.graph.find_game_state(initial_state)
         self.current_state_info = initial_state_updated
         self.last_episode_path.state_info_list.append(initial_state_updated)

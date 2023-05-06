@@ -51,3 +51,4 @@ RETURN = "Return"
 
 # Error:
 INVALID_OPTION = "Invalid option"
+NOT_INT_INPUTED = "Option must be a integer (1, 2, 3 ...)"

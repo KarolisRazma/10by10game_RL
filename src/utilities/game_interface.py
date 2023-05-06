@@ -95,7 +95,11 @@ class GameInterface:
         while True:
             print(f'\n')
             self.display_options(self.initial_options)
-            choice = int(input("> "))
+            try:
+                choice = int(input("> "))
+            except ValueError:
+                print(int_c.NOT_INT_INPUTED)
+                continue
             if choice == 1:
                 self.process_set_agents_option()
             elif choice == 2:
@@ -112,7 +116,11 @@ class GameInterface:
         while True:
             print(f'\n')
             self.display_options(self.agents_pairs_options)
-            choice = int(input("> "))
+            try:
+                choice = int(input("> "))
+            except ValueError:
+                print(int_c.NOT_INT_INPUTED)
+                continue
             if choice == 1:
                 self.environment.clear_agents()
                 self.environment.set_agent(self.brute_force_agent_1)
@@ -167,7 +175,11 @@ class GameInterface:
         while True:
             print(f'\n')
             self.display_options(self.start_episode_options)
-            choice = int(input("> "))
+            try:
+                choice = int(input("> "))
+            except ValueError:
+                print(int_c.NOT_INT_INPUTED)
+                continue
             if choice == 1:
                 episodes = 1
             elif choice == 2:
@@ -231,7 +243,11 @@ class GameInterface:
         while True:
             print(f'\n')
             self.display_options(self.graphs_deletion_options)
-            choice = int(input("> "))
+            try:
+                choice = int(input("> "))
+            except ValueError:
+                print(int_c.NOT_INT_INPUTED)
+                continue
             if choice == 1:
                 self.simple_agent_1.graph.delete_everything()
             elif choice == 2:

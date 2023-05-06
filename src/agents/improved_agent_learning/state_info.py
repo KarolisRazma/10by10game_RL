@@ -15,6 +15,9 @@ class StateInfo:
         self.lose_counter = None
         self.draw_counter = None
 
+        # Flag
+        self.is_initial_state = False
+
     def set_counters(self, times_visited, win_counter, lose_counter, draw_counter):
         self.times_visited = times_visited
         self.win_counter = win_counter

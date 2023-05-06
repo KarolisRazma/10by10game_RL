@@ -13,7 +13,8 @@ class RLearning:
         if step_counter > 1:
             max_next_state_value = graph.find_maximum_state_value(current_state_info)
         else:
-            max_next_state_value = 1
+            # TODO, temporary solution
+            max_next_state_value = 1 if is_game_won else -1
 
         # Q learning
         new_state_value = current_state_value + self.learning_rate * (self.reward(is_game_won, step_counter) +

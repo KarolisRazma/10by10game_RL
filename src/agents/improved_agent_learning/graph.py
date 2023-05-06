@@ -14,7 +14,7 @@ import src.agents.improved_agent_learning.state_info as sti
 #   property: win_counter
 #   property: lose_counter
 #   property: draw_counter
-#
+#   property: initial_state
 #
 # relation NEXT_PLACING:
 #   property: row
@@ -38,8 +38,8 @@ class Graph:
         self.session.run(query_1)
         self.session.run(query_2)
 
-    # @argument state_info             --> StateInfo object
-    def add_game_state(self, state_info):
+    # @argument state_info      --> StateInfo object
+    def add_game_state(self, state_info, is_initial_state=False):
         self.session.run(
             """
             MERGE (:GameState {
@@ -47,10 +47,11 @@ class Graph:
             my_turn: $m_t,
             my_score: $m_s,
             enemy_score: $e_s,
-            chips_left: $c_l})
+            chips_left: $c_l,
+            initial_state: $i_i_s})
             """,
             b_v=state_info.board_values, m_t=state_info.my_turn, m_s=state_info.my_score,
-            e_s=state_info.enemy_score, c_l=state_info.chips_left
+            e_s=state_info.enemy_score, c_l=state_info.chips_left, i_i_s=is_initial_state
         )
 
     # @argument current_state_info          --> StateInfo object
@@ -263,6 +264,7 @@ class Graph:
         state_info.win_counter = win_counter
         state_info.lose_counter = lose_counter
         state_info.draw_counter = draw_counter
+        state_info.is_initial_state = record['initial_state']
 
         return state_info
 
@@ -360,6 +362,7 @@ class Graph:
             state_info.win_counter = win_counter
             state_info.lose_counter = lose_counter
             state_info.draw_counter = draw_counter
+            state_info.is_initial_state = record['initial_state']
 
             updated_records.append(state_info)
         return updated_records

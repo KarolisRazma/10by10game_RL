@@ -44,7 +44,8 @@ class PathEvaluator:
             state_info.state_value = self.learning.calc_new_state_value(graph=graph, is_game_won=is_game_won,
                                                                         current_state_info=state_info,
                                                                         current_state_value=state_info.state_value,
-                                                                        step_counter=step_counter)
+                                                                        step_counter=step_counter,
+                                                                        is_game_drawn=is_game_drawn)
             # Increment times_visited
             state_info.times_visited += 1
             # Increment win, lose or draw counter
