@@ -202,35 +202,35 @@ class GameInterface:
                 if isinstance(self.environment.agents[0], sag.SimpleAgent):
                     agent = self.environment.agents[0]
                     agent.eval_path_after_episode()
-                    pathstring = notator.notate_path_simple(agent.last_episode_path)
-                    filename = notator.FILENAME_SIMPLE_AGENT_1 if agent.id == int_c.SIMPLE_1\
-                        else notator.FILENAME_SIMPLE_AGENT_2
-                    notator.dump_pathstring_into_log(pathstring, filename)
+                    # pathstring = notator.notate_path_simple(agent.last_episode_path)
+                    # filename = notator.FILENAME_SIMPLE_AGENT_1 if agent.id == int_c.SIMPLE_1\
+                    #     else notator.FILENAME_SIMPLE_AGENT_2
+                    # notator.dump_pathstring_into_log(pathstring, filename)
                 # Evaluate ImprovedAgent path
                 elif isinstance(self.environment.agents[0], iag.ImprovedAgent):
                     agent = self.environment.agents[0]
                     agent.eval_path_after_episode()
-                    pathstring = notator.notate_path_improved(agent.last_episode_path)
-                    filename = notator.FILENAME_IMPROVED_AGENT_1 if agent.id == int_c.IMPROVED_1\
-                        else notator.FILENAME_IMPROVED_AGENT_2
-                    notator.dump_pathstring_into_log(pathstring, filename)
+                    # pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    # filename = notator.FILENAME_IMPROVED_AGENT_1 if agent.id == int_c.IMPROVED_1\
+                    #     else notator.FILENAME_IMPROVED_AGENT_2
+                    # notator.dump_pathstring_into_log(pathstring, filename)
 
                 # Evaluate SimpleAgent path
                 if isinstance(self.environment.agents[1], sag.SimpleAgent):
                     agent = self.environment.agents[1]
                     agent.eval_path_after_episode()
-                    pathstring = notator.notate_path_simple(agent.last_episode_path)
-                    filename = notator.FILENAME_SIMPLE_AGENT_2 if agent.id == int_c.SIMPLE_2\
-                        else notator.FILENAME_SIMPLE_AGENT_1
-                    notator.dump_pathstring_into_log(pathstring, filename)
+                    # pathstring = notator.notate_path_simple(agent.last_episode_path)
+                    # filename = notator.FILENAME_SIMPLE_AGENT_2 if agent.id == int_c.SIMPLE_2\
+                    #     else notator.FILENAME_SIMPLE_AGENT_1
+                    # notator.dump_pathstring_into_log(pathstring, filename)
                 # Evaluate ImprovedAgent path
                 elif isinstance(self.environment.agents[1], iag.ImprovedAgent):
                     agent = self.environment.agents[1]
                     agent.eval_path_after_episode()
-                    pathstring = notator.notate_path_improved(agent.last_episode_path)
-                    filename = notator.FILENAME_IMPROVED_AGENT_2 if agent.id == int_c.IMPROVED_2\
-                        else notator.FILENAME_IMPROVED_AGENT_1
-                    notator.dump_pathstring_into_log(pathstring, filename)
+                    # pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    # filename = notator.FILENAME_IMPROVED_AGENT_2 if agent.id == int_c.IMPROVED_2\
+                    #     else notator.FILENAME_IMPROVED_AGENT_1
+                    # notator.dump_pathstring_into_log(pathstring, filename)
 
             end = time.time()
             print(f'\n')

@@ -7,6 +7,7 @@ FILENAME_IMPROVED_AGENT_2 = "improvedagent2.log"
 
 SEPARATOR = "/"
 
+# TODO, path should also contain relations between nodes
 
 def notate_path_simple(path):
     states = copy.deepcopy(path.state_info_list)

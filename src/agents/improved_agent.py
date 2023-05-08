@@ -3,6 +3,8 @@ import src.game_components.color as clr
 import src.agents.agent as ag
 import src.agents.improved_agent_learning.path as ph
 import src.agents.improved_agent_learning.state_info as sti
+import src.agents.improved_agent_learning.placing_relation_info as pri
+import src.agents.improved_agent_learning.taking_relation_info as tri
 import src.agents.improved_agent_learning.path_evaluator as pe
 import numpy as np
 import random
@@ -78,7 +80,7 @@ class ImprovedAgent(ag.Agent):
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
 
-        # Get all actions from current position
+        # Get all actions from current position (in the field self.actions)
         self.get_actions_for_placing(game_board)
 
         if current_behaviour == "EXPLORE":
@@ -100,9 +102,10 @@ class ImprovedAgent(ag.Agent):
 
         # Make StateInfo object
         enemy_score = self.current_state_info.enemy_score
-        chips_left = self.current_state_info.chips_left
+        chips_left = self.current_state_info.chips_left - 1
         self.next_state_info = sti.StateInfo(board_values=next_board_values, my_turn=1, my_score=self.score,
                                              enemy_score=enemy_score, chips_left=chips_left)
+
         # Try to add it to db
         self.graph.add_game_state(self.next_state_info)
         # Make placing rel
@@ -110,26 +113,53 @@ class ImprovedAgent(ag.Agent):
 
         # Update next_state_info
         self.next_state_info = self.graph.find_game_state(self.next_state_info)
+        # Get placing_relation_info from db
+        placing_relation_info = self.graph.find_placing_relation_info(self.current_state_info, self.next_state_info)
+
         # Add to the path
+        self.last_episode_path.relation_info_list.append(placing_relation_info)
         self.last_episode_path.state_info_list.append(self.next_state_info)
 
         return selected_action
 
     def do_exploit_placing(self, game_board):
-        # Get next board values
+        # Get next board values (need for filtering)
         self.next_states_board_values = self.convert_placing_actions(game_board)
-        # Get best node
+
+        # Get nodes to which agent could move
         nodes = self.filter_nodes(self.graph.find_game_state_next_vertices
-                                  (action_type='any', state_info=self.current_state_info))
+                                  (action_type='placing', state_info=self.current_state_info))
         # if 'nodes' is empty
         if not nodes:
             return self.do_explore_placing(game_board)
 
-        best_node = max(nodes, key=lambda x: x.state_value)
+        # Extra validation to check if agent can do best possible action
+        if nodes:
+            # Nodes which agent might can do
+            # Get all relations from that node
+            relations_info = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='placing')
+            while len(relations_info) != 0:
+                # First element in the list will have the highest q-value
+                relations_info.sort(key=lambda x: x.q_value, reverse=True)
+                # Node is viable if True
+                if self.chips[0].value == relations_info[0].chip_value or \
+                        self.chips[1].value == relations_info[0].chip_value:
+                    break
+                # If reached, then relation is not possible to be made
+                # Remove that relation
+                del relations_info[0]
+            if len(relations_info) == 0:
+                # Do explore
+                return self.do_explore_placing(game_board)
+
+        # Set best relation(aka best action)
+        best_relation = relations_info[0]
         # Update next_state_info
-        self.next_state_info = best_node
+        self.next_state_info = self.graph.find_next_state_by_placing_relation(self.current_state_info, best_relation)
+
         # Add to the path
-        self.last_episode_path.state_info_list.append(best_node)
+        self.last_episode_path.relation_info_list.append(best_relation)
+        self.last_episode_path.state_info_list.append(self.next_state_info)
 
         # Get action for next state
         return self.graph.find_next_placing_action(self.current_state_info, self.next_state_info)
@@ -191,30 +221,82 @@ class ImprovedAgent(ag.Agent):
 
         # Update next_state_info
         self.next_state_info = self.graph.find_game_state(self.next_state_info)
+
+        # Get taking_relation_info from db
+        taking_relation_info = self.graph.find_taking_relation_info(self.current_state_info, self.next_state_info,
+                                                                    self.transform_combination(selected_combination),
+                                                                    last_placed_chip)
+
         # Add to the path
+        self.last_episode_path.relation_info_list.append(taking_relation_info)
         self.last_episode_path.state_info_list.append(self.next_state_info)
 
         return self.graph.find_next_taking_action(self.current_state_info, self.next_state_info, last_placed_chip)
 
     def do_exploit_taking(self, game_board, combinations, last_placed_chip):
-        # Get next board values
+        # Get next board values (need for filtering)
         self.next_states_board_values = self.convert_taking_actions(game_board, combinations, last_placed_chip[0],
                                                                     last_placed_chip[1])
-        # Get best node
+        # Get nodes to which agent could move
         nodes = self.filter_nodes(self.graph.find_game_state_next_vertices
-                                  (action_type='any', state_info=self.current_state_info))
+                                  (action_type='taking', state_info=self.current_state_info))
         # if 'nodes' is empty
         if not nodes:
             return self.do_explore_taking(game_board, combinations, last_placed_chip)
 
-        best_node = max(nodes, key=lambda x: x.state_value)
+        # Extra validation to check if agent can do best possible action
+        if nodes:
+            # Nodes which agent might can do
+            # Get all relations from that node
+            relations_info = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='taking')
+            while len(relations_info) != 0:
+                # First element in the list will have the highest q-value
+                relations_info.sort(key=lambda x: x.q_value, reverse=True)
+
+                is_relation_viable = False
+                # Check if relation is viable
+                # First last_placed_chip should be equal to relations.info[0].last_placed_chip
+                if tuple(last_placed_chip) == tuple(relations_info[0].last_placed_chip):
+                    for combination in combinations:
+                        # Transform into list of ints [row, col, value]
+                        transformed_combination = self.transform_combination(combination)
+
+                        if tuple(transformed_combination) == tuple(relations_info[0].combination):
+                            is_relation_viable = True
+                            break
+                # Check flag value
+                if not is_relation_viable:
+                    # If reached, then relation is not possible to be made
+                    # Remove that relation
+                    del relations_info[0]
+                else:
+                    # Relation is viable
+                    break
+            if len(relations_info) == 0:
+                # Do explore
+                return self.do_explore_placing(game_board)
+
+        # Set best relation using relations_info[0]
+        best_relation = relations_info[0]
+
         # Update next_state_info
-        self.next_state_info = best_node
+        self.next_state_info = self.graph.find_next_state_by_taking_relation(self.current_state_info, best_relation)
+
         # Add to the path
-        self.last_episode_path.state_info_list.append(best_node)
+        self.last_episode_path.relation_info_list.append(best_relation)
+        self.last_episode_path.state_info_list.append(self.next_state_info)
 
         # Get action for next state
         return self.graph.find_next_taking_action(self.current_state_info, self.next_state_info, last_placed_chip)
+
+    @staticmethod
+    def transform_combination(combination):
+        transformed_combination = []
+        for chip in combination:
+            transformed_combination.append(chip.row)
+            transformed_combination.append(chip.col)
+            transformed_combination.append(chip.value)
+        return transformed_combination
 
     # Placing action
     @staticmethod

@@ -6,9 +6,6 @@ class StateInfo:
         self.enemy_score = enemy_score
         self.chips_left = chips_left
 
-        # Do not need to assign any value on object creation
-        self.state_value = None
-
         # Counters
         self.times_visited = None
         self.win_counter = None

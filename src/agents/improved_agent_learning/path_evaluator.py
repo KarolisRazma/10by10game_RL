@@ -11,55 +11,74 @@ class PathEvaluator:
     # argument graph is Graph object
     # argument is_game_won is boolean type value
     def eval_path(self, graph, is_game_won, is_game_drawn):
-        # Store path length and create step counter from the end
-        path_length = len(self.path.state_info_list)
-        step_counter = 1
+        # Store states length (relation length is shorter by 1)
+        # And create flag for first step
+        states_length = len(self.path.state_info_list)
+        relations_length = len(self.path.relation_info_list)
+        is_first_step = True
 
-        # From Path END -> To Path START
-        while path_length != 0:
-            state_info = self.path.state_info_list[path_length - 1]
+        while True:
+            # From Path END -> To Path START
 
-            # Check fields that have varying value
-            # state_value
-            if state_info.state_value is None:
-                state_info.state_value = 0.0
+            # End loop
+            if states_length == 0:
+                break
 
-            # times_visited
-            if state_info.times_visited is None:
-                state_info.times_visited = 0
+            # States
+            if states_length > 0:
+                state_info = self.path.state_info_list[states_length - 1]
 
-            # win_counter
-            if state_info.win_counter is None:
-                state_info.win_counter = 0
+                # times_visited
+                if state_info.times_visited is None:
+                    state_info.times_visited = 0
 
-            # lose_counter
-            if state_info.lose_counter is None:
-                state_info.lose_counter = 0
+                # win_counter
+                if state_info.win_counter is None:
+                    state_info.win_counter = 0
 
-            # draw_counter
-            if state_info.draw_counter is None:
-                state_info.draw_counter = 0
+                # lose_counter
+                if state_info.lose_counter is None:
+                    state_info.lose_counter = 0
 
-            # Calculate new value
-            state_info.state_value = self.learning.calc_new_state_value(graph=graph, is_game_won=is_game_won,
-                                                                        current_state_info=state_info,
-                                                                        current_state_value=state_info.state_value,
-                                                                        step_counter=step_counter,
-                                                                        is_game_drawn=is_game_drawn)
-            # Increment times_visited
-            state_info.times_visited += 1
-            # Increment win, lose or draw counter
-            if is_game_won:
-                state_info.win_counter += 1
-            else:
-                if is_game_drawn:
-                    state_info.draw_counter += 1
+                # draw_counter
+                if state_info.draw_counter is None:
+                    state_info.draw_counter = 0
+
+                # Increment times_visited
+                state_info.times_visited += 1
+                # Increment win, lose or draw counter
+                if is_game_won:
+                    state_info.win_counter += 1
                 else:
-                    state_info.lose_counter += 1
+                    if is_game_drawn:
+                        state_info.draw_counter += 1
+                    else:
+                        state_info.lose_counter += 1
 
-            # Update Graph
-            graph.update_node_after_episode(state_info)
+                # Update Graph
+                graph.update_node_after_episode(state_info)
 
-            # Decrease path len and increase step counter
-            path_length -= 1
-            step_counter += 1
+            # Relations
+            if relations_length > 0:
+                relation_info = self.path.relation_info_list[relations_length - 1]
+
+                # q_value
+                if relation_info.q_value is None:
+                    relation_info.q_value = 0.0
+
+                relation_info.q_value = self.learning.calc_new_q_value(graph=graph, state_info=state_info,
+                                                                       relation_info=relation_info,
+                                                                       is_final_state=is_first_step,
+                                                                       is_game_won=is_game_won,
+                                                                       is_game_drawn=is_game_drawn)
+
+                # Update q-value
+                graph.set_q_value(self.path.state_info_list[states_length - 2], state_info, relation_info)
+
+                # First step is over, set flag false
+                if is_first_step:
+                    is_first_step = False
+
+            # Decrease states/relation len and increase step counter
+            states_length -= 1
+            relations_length -= 1

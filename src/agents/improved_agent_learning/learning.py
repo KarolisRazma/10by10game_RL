@@ -11,27 +11,29 @@ class RLearning:
         self.discount_rate = 0.5  # gamma in math
         self.learning_rate = 0.5  # alpha in math
 
-    def calc_new_state_value(self, graph, is_game_won, current_state_info, current_state_value, step_counter,
-                             is_game_drawn):
-        if step_counter == 1:
+    def calc_new_q_value(self, graph, state_info, relation_info, is_final_state, is_game_won, is_game_drawn):
+        current_q_value = relation_info.q_value
+
+        if is_final_state:
             reward = self.reward(is_game_won, is_game_drawn)
-            new_state_value = reward
+            new_q_value = reward
         else:
-            max_next_state_value = graph.find_maximum_state_value(current_state_info)
-            new_state_value = current_state_value + self.learning_rate * (0 + self.discount_rate * max_next_state_value
-                                                                          - current_state_value)
-        return new_state_value
+            # max_next_state_value = graph.find_maximum_state_value(state_info)
+            max_next_state_q_value = graph.find_max_next_state_q_value(state_info)
+            new_q_value = current_q_value + self.learning_rate * (self.discount_rate * max_next_state_q_value
+                                                                  - current_q_value)
+        return new_q_value
 
     @staticmethod
     def reward(is_game_won, is_game_drawn):
         # Agent reached WIN
         if is_game_won:
-            return 1000
+            return 100000
 
         # Agent reached DRAW
         elif is_game_drawn:
-            return 300
+            return 30000
 
         # Agent reached LOSE
         if not is_game_won:
-            return -1000
+            return -100000
