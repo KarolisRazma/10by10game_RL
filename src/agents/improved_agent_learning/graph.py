@@ -449,7 +449,7 @@ class Graph:
         placing_relation_info.q_value = q_value
         return placing_relation_info
 
-    def find_taking_relation_info(self, current_state_info, next_state_info, combination, last_placed_chip):
+    def find_taking_relation_info(self, current_state_info, next_state_info, last_placed_chip):
         result = self.session.run(
             """
             MATCH (:GameState {
@@ -458,7 +458,7 @@ class Graph:
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
             chips_left: $c_chips_left})
-            -[r:NEXT_TAKING {combination: $comb, last_placed_chip: $lpc}]->(:GameState {
+            -[r:NEXT_TAKING {last_placed_chip: $lpc}]->(:GameState {
             board_values: $n_board_values,
             my_turn: $n_turn,
             my_score: $n_my_score,
@@ -472,7 +472,7 @@ class Graph:
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
             n_chips_left=next_state_info.chips_left,
-            comb=combination, lpc=last_placed_chip
+            lpc=last_placed_chip
         )
         # Simplify dict
         record = (result.single(strict=True)).data()

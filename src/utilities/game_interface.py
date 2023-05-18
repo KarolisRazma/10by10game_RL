@@ -36,10 +36,14 @@ session_simple_agent_1 = driver.session(database="simpleagent1")
 session_simple_agent_2 = driver.session(database="simpleagent2")
 session_improved_agent_1 = driver.session(database="improvedagent1")
 session_improved_agent_2 = driver.session(database="improvedagent2")
+session_improved_agent_3 = driver.session(database="improvedagent3")
+session_improved_agent_4 = driver.session(database="improvedagent4")
 graph_simple_agent_1 = sgh.Graph(driver, session_simple_agent_1)
 graph_simple_agent_2 = sgh.Graph(driver, session_simple_agent_2)
 graph_improved_agent_1 = igh.Graph(driver, session_improved_agent_1)
 graph_improved_agent_2 = igh.Graph(driver, session_improved_agent_2)
+graph_improved_agent_3 = igh.Graph(driver, session_improved_agent_3)
+graph_improved_agent_4 = igh.Graph(driver, session_improved_agent_4)
 
 
 class GameInterface:
@@ -61,8 +65,17 @@ class GameInterface:
                                               learning_algorithm=slg.RLearning(), explore_rate=0.5)
         self.simple_agent_2 = sag.SimpleAgent(int_c.SIMPLE_2, graph_simple_agent_2,
                                               learning_algorithm=slg.RLearning(), explore_rate=0.5)
-        self.improved_agent_1 = iag.ImprovedAgent(int_c.IMPROVED_1, graph_improved_agent_1, ilg.RLearning())
-        self.improved_agent_2 = iag.ImprovedAgent(int_c.IMPROVED_2, graph_improved_agent_2, ilg.RLearning())
+        # self.improved_agent_1 = iag.ImprovedAgent(int_c.IMPROVED_1, graph_improved_agent_1,
+        #                                           ilg.RLearning(discount_rate=0.8, learning_rate=0.2),
+        #                                           exploit_growth=0.07, explore_minimum=0.02)
+        self.improved_agent_1 = iag.ImprovedAgent(int_c.IMPROVED_1, graph_improved_agent_3,
+                                                  ilg.RLearning(discount_rate=0.8, learning_rate=0.2),
+                                                  exploit_growth=0.06, explore_minimum=0.10,
+                                                  is_improved_exploitation_on=True)
+        self.improved_agent_2 = iag.ImprovedAgent(int_c.IMPROVED_2, graph_improved_agent_2,
+                                                  ilg.RLearning(discount_rate=0.6, learning_rate=0.4),
+                                                  exploit_growth=0.06, explore_minimum=0.10,
+                                                  is_improved_exploitation_on=True)
 
         # Initial options list
         self.initial_options = [int_c.SET_AGENTS, int_c.RUN_EPISODES, int_c.DELETE_AGENT_GRAPHS, int_c.EXIT]
@@ -210,10 +223,10 @@ class GameInterface:
                 elif isinstance(self.environment.agents[0], iag.ImprovedAgent):
                     agent = self.environment.agents[0]
                     agent.eval_path_after_episode()
-                    # pathstring = notator.notate_path_improved(agent.last_episode_path)
-                    # filename = notator.FILENAME_IMPROVED_AGENT_1 if agent.id == int_c.IMPROVED_1\
-                    #     else notator.FILENAME_IMPROVED_AGENT_2
-                    # notator.dump_pathstring_into_log(pathstring, filename)
+                    pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    filename = notator.FILENAME_IMPROVED_AGENT_1 if agent.id == int_c.IMPROVED_1\
+                        else notator.FILENAME_IMPROVED_AGENT_2
+                    notator.dump_pathstring_into_log(pathstring, filename)
 
                 # Evaluate SimpleAgent path
                 if isinstance(self.environment.agents[1], sag.SimpleAgent):
@@ -227,10 +240,17 @@ class GameInterface:
                 elif isinstance(self.environment.agents[1], iag.ImprovedAgent):
                     agent = self.environment.agents[1]
                     agent.eval_path_after_episode()
-                    # pathstring = notator.notate_path_improved(agent.last_episode_path)
-                    # filename = notator.FILENAME_IMPROVED_AGENT_2 if agent.id == int_c.IMPROVED_2\
-                    #     else notator.FILENAME_IMPROVED_AGENT_1
-                    # notator.dump_pathstring_into_log(pathstring, filename)
+                    pathstring = notator.notate_path_improved(agent.last_episode_path)
+                    filename = notator.FILENAME_IMPROVED_AGENT_2 if agent.id == int_c.IMPROVED_2\
+                        else notator.FILENAME_IMPROVED_AGENT_1
+                    notator.dump_pathstring_into_log(pathstring, filename)
+
+                # Log wins/loses/draws
+                self.environment.log.add_log("info", f'Agent [{self.environment.agents[0].id}]'
+                                                     f' won {self.environment.agents[0].wins}')
+                self.environment.log.add_log("info", f'Agent [{self.environment.agents[1].id}]'
+                                                     f' won {self.environment.agents[1].wins}')
+                self.environment.log.add_log("info", f'Draws: {self.environment.agents[1].draws}')
 
             end = time.time()
             print(f'\n')

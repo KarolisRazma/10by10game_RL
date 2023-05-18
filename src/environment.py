@@ -208,22 +208,30 @@ class Environment:
             self.agents[0].wins += 1
             self.agents[0].is_last_game_won = True
             self.agents[1].is_last_game_won = False
+            self.agents[0].is_last_game_drawn = False
+            self.agents[1].is_last_game_drawn = False
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
             self.agents[0].is_last_game_won = False
             self.agents[1].is_last_game_won = True
+            self.agents[0].is_last_game_drawn = False
+            self.agents[1].is_last_game_drawn = False
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
                 self.agents[0].is_last_game_won = True
                 self.agents[1].is_last_game_won = False
+                self.agents[0].is_last_game_drawn = False
+                self.agents[1].is_last_game_drawn = False
                 return
-            if self.agents[0].score > self.agents[1].score:
+            elif self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
                 self.agents[0].is_last_game_won = False
                 self.agents[1].is_last_game_won = True
+                self.agents[0].is_last_game_drawn = False
+                self.agents[1].is_last_game_drawn = False
                 return
             else:
                 self.agents[0].draws += 1
@@ -364,15 +372,22 @@ class Environment:
                 enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)
             elif isinstance(enemy_agent, iag.ImprovedAgent):
                 # Before adding state, we need to acquire full state info (with state value)
+
+                # There was a bug, so it some not very legal fix, but it works, so good
+                if isinstance(agent, bfag.BruteForceAgent):
+                    chips_left = len(self.container.chips) - 1
+                elif isinstance(agent, iag.ImprovedAgent):
+                    chips_left = agent.next_state_info.chips_left
+
                 next_state_info_for_enemy = isti.StateInfo(board_values=self.environment_board_values, my_turn=0,
                                                            my_score=enemy_agent.score, enemy_score=agent.score,
-                                                           chips_left=agent.next_state_info.chips_left)
+                                                           chips_left=chips_left)
                 enemy_agent.graph.add_game_state(next_state_info_for_enemy)
                 enemy_agent.graph.make_taking_rel(enemy_agent.current_state_info, next_state_info_for_enemy,
                                                   combination, self.last_played_chip)
                 enemy_agent.next_state_info = enemy_agent.graph.find_game_state(next_state_info_for_enemy)
                 enemy_agent_taking_relation_info = enemy_agent.graph.find_taking_relation_info(
-                    enemy_agent.current_state_info, enemy_agent.next_state_info, taking_action, self.last_played_chip
+                    enemy_agent.current_state_info, enemy_agent.next_state_info, self.last_played_chip
                 )
                 enemy_agent.last_episode_path.relation_info_list.append(enemy_agent_taking_relation_info)
                 enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)

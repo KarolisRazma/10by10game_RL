@@ -1,8 +1,8 @@
 class RLearning:
     def __init__(self):
         # Parameters
-        self.discount_rate = 0.75  # gamma in math
-        self.learning_rate = 0.9  # alpha in math
+        self.discount_rate = 0.5  # gamma in math
+        self.learning_rate = 0.5  # alpha in math
 
         # Probability distributions
         self.take_best_node = 0.75

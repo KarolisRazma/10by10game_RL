@@ -55,6 +55,8 @@ class SimpleAgent(ag.Agent):
         self.next_states_board_values = None
         self.current_state_info = None
         self.next_state_info = None
+        self.is_last_game_won = None
+        self.is_last_game_drawn = None
 
     def eval_path_after_episode(self):
         self.path_evaluator.set_path(self.last_episode_path)

@@ -16,7 +16,8 @@ class ImprovedAgent(ag.Agent):
     # @param graph                  --> neoj4 graph
     # @param learning_algorithm     --> class RLearning object
 
-    def __init__(self, nickname, graph, learning_algorithm):
+    def __init__(self, nickname, graph, learning_algorithm, exploit_growth, explore_minimum,
+                 is_improved_exploitation_on=False):
         # Init Agent superclass
         super().__init__(nickname)
 
@@ -38,9 +39,12 @@ class ImprovedAgent(ag.Agent):
         self.explore_rate = float(1)
         # Best next node selection rate
         self.exploit_rate = float(1 - self.explore_rate)
+        self.explore_minimum = explore_minimum
+        self.exploit_growth = exploit_growth
 
         # List for agent behaviour selection
         self.behaviour = ["EXPLOIT", "EXPLORE"]
+        self.is_improved_exploitation_on = is_improved_exploitation_on
 
     def reset(self):
         self.score = 0
@@ -50,6 +54,8 @@ class ImprovedAgent(ag.Agent):
         self.next_states_board_values = None
         self.current_state_info = None
         self.next_state_info = None
+        self.is_last_game_won = None
+        self.is_last_game_drawn = None
 
     def eval_path_after_episode(self):
         self.path_evaluator.set_path(self.last_episode_path)
@@ -74,8 +80,16 @@ class ImprovedAgent(ag.Agent):
         # Else, change exploration rate accordingly to nodes_length
         else:
             nodes_length = len(nodes)
-            self.explore_rate = float(1 - 0.05 * nodes_length)
-            self.exploit_rate = float(1 - self.explore_rate)
+
+            explore_rate = float(1 - self.exploit_growth * nodes_length)
+            exploit_rate = float(1 - explore_rate)
+            # If explore rate is negative
+            if explore_rate < 0:
+                explore_rate = float(self.explore_minimum)
+                exploit_rate = float(1 - explore_rate)
+
+            self.explore_rate = explore_rate
+            self.exploit_rate = exploit_rate
 
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
@@ -144,6 +158,7 @@ class ImprovedAgent(ag.Agent):
                 # Node is viable if True
                 if self.chips[0].value == relations_info[0].chip_value or \
                         self.chips[1].value == relations_info[0].chip_value:
+                    best_relation = relations_info[0]
                     break
                 # If reached, then relation is not possible to be made
                 # Remove that relation
@@ -152,8 +167,14 @@ class ImprovedAgent(ag.Agent):
                 # Do explore
                 return self.do_explore_placing(game_board)
 
-        # Set best relation(aka best action)
-        best_relation = relations_info[0]
+        # TODO DO IMPROVED EXPLOITATION FOR PLACING
+        if self.is_improved_exploitation_on:
+            # Filter relations, and get the ones that are possible to do
+            relations = self.filter_placing_exploitation(relations_info)
+            if relations:
+                next_states_info = self.get_states_by_placing_actions(relations)
+                best_relation = self.get_best_placing_relation(next_states_info, relations_info[0])
+
         # Update next_state_info
         self.next_state_info = self.graph.find_next_state_by_placing_relation(self.current_state_info, best_relation)
 
@@ -163,6 +184,42 @@ class ImprovedAgent(ag.Agent):
 
         # Get action for next state
         return self.graph.find_next_placing_action(self.current_state_info, self.next_state_info)
+
+    # THIS IS ONLY FOR IMPROVED EXPLOITATION
+    def filter_placing_exploitation(self, relations_info):
+        filtered_relations = []
+        for relation in relations_info:
+            # Return if relations starts to be negative q-value
+            if relation.q_value < 0:
+                return filtered_relations
+            # Relation is viable if True
+            if self.chips[0].value == relation.chip_value or self.chips[1].value == relation.chip_value:
+                filtered_relations.append(relation)
+        return filtered_relations
+
+    # THIS IS ONLY FOR IMPROVED EXPLOITATION
+    def get_states_by_placing_actions(self, relations):
+        next_states_info = []
+        for relation in relations:
+            info = self.graph.find_next_state_by_placing_relation(self.current_state_info, relation)
+            next_states_info.append(info)
+        return next_states_info
+
+    def get_best_placing_relation(self, next_states_info, best_relation):
+        get_max_visited = (max(next_states_info, key=lambda x: x.times_visited)).times_visited
+        visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
+        win_rate_criteria = 0.50
+        best_states = []
+        for state in next_states_info:
+            state_win_rate = float(state.win_counter / state.times_visited)
+            if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
+                best_states.append(state)
+        if best_states:
+            next_state = max(best_states, key=lambda x: float(x.win_counter / x.times_visited))
+            best_relation = self.graph.find_placing_relation_info(self.current_state_info, next_state)
+            return best_relation
+        else:
+            return best_relation
 
     def filter_nodes(self, nodes):
         updated_nodes = []
@@ -184,8 +241,16 @@ class ImprovedAgent(ag.Agent):
         # Else, change exploration rate accordingly to nodes_length
         else:
             nodes_length = len(nodes)
-            self.explore_rate = float(1 - 0.05 * nodes_length)
-            self.exploit_rate = float(1 - self.explore_rate)
+
+            explore_rate = float(1 - self.exploit_growth * nodes_length)
+            exploit_rate = float(1 - explore_rate)
+            # If explore rate is negative
+            if explore_rate < 0:
+                explore_rate = float(self.explore_minimum)
+                exploit_rate = float(1 - explore_rate)
+
+            self.explore_rate = explore_rate
+            self.exploit_rate = exploit_rate
 
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
@@ -224,7 +289,6 @@ class ImprovedAgent(ag.Agent):
 
         # Get taking_relation_info from db
         taking_relation_info = self.graph.find_taking_relation_info(self.current_state_info, self.next_state_info,
-                                                                    self.transform_combination(selected_combination),
                                                                     last_placed_chip)
 
         # Add to the path
@@ -263,6 +327,7 @@ class ImprovedAgent(ag.Agent):
 
                         if tuple(transformed_combination) == tuple(relations_info[0].combination):
                             is_relation_viable = True
+                            best_relation = relations_info[0]
                             break
                 # Check flag value
                 if not is_relation_viable:
@@ -274,10 +339,15 @@ class ImprovedAgent(ag.Agent):
                     break
             if len(relations_info) == 0:
                 # Do explore
-                return self.do_explore_placing(game_board)
+                return self.do_explore_taking(game_board, combinations, last_placed_chip)
 
-        # Set best relation using relations_info[0]
-        best_relation = relations_info[0]
+        # TODO DO IMPROVED EXPLOITATION FOR TAKING
+        if self.is_improved_exploitation_on:
+            # Filter relations, and get the ones that are possible to do
+            relations = self.filter_taking_exploitation(relations_info, combinations, last_placed_chip)
+            if relations:
+                next_states_info = self.get_states_by_taking_actions(relations)
+                best_relation = self.get_best_taking_relation(next_states_info, relations_info[0], last_placed_chip)
 
         # Update next_state_info
         self.next_state_info = self.graph.find_next_state_by_taking_relation(self.current_state_info, best_relation)
@@ -288,6 +358,48 @@ class ImprovedAgent(ag.Agent):
 
         # Get action for next state
         return self.graph.find_next_taking_action(self.current_state_info, self.next_state_info, last_placed_chip)
+
+    # THIS IS ONLY FOR IMPROVED EXPLOITATION
+    def filter_taking_exploitation(self, relations_info, combinations, last_placed_chip):
+        filtered_relations = []
+        for relation in relations_info:
+            # Return if relations starts to be negative q-value
+            if relation.q_value < 0:
+                return filtered_relations
+
+            if tuple(last_placed_chip) == tuple(relation.last_placed_chip):
+                for combination in combinations:
+                    # Transform into list of ints [row, col, value]
+                    transformed_combination = self.transform_combination(combination)
+                    if tuple(transformed_combination) == tuple(relation.combination):
+                        filtered_relations.append(relation)
+
+        return filtered_relations
+
+    # THIS IS ONLY FOR IMPROVED EXPLOITATION
+    def get_states_by_taking_actions(self, relations):
+        next_states_info = []
+        for relation in relations:
+            info = self.graph.find_next_state_by_taking_relation(self.current_state_info, relation)
+            next_states_info.append(info)
+        return next_states_info
+
+    def get_best_taking_relation(self, next_states_info, best_relation, last_placed_chip):
+        get_max_visited = (max(next_states_info, key=lambda x: x.times_visited)).times_visited
+        visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
+        win_rate_criteria = 0.50
+        best_states = []
+        for state in next_states_info:
+            state_win_rate = float(state.win_counter / state.times_visited)
+            if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
+                best_states.append(state)
+        if best_states:
+            next_state = max(best_states, key=lambda x: float(x.win_counter / x.times_visited))
+            best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state,
+                                                                 last_placed_chip)
+            return best_relation
+        else:
+            return best_relation
 
     @staticmethod
     def transform_combination(combination):
