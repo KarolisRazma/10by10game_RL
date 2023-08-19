@@ -34,7 +34,7 @@ class RLearning:
 
         # Agent reached DRAW
         elif is_game_drawn:
-            return 30000
+            return 5000
 
         # Agent reached LOSE
         if not is_game_won:

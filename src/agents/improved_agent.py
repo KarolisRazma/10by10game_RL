@@ -206,16 +206,22 @@ class ImprovedAgent(ag.Agent):
         return next_states_info
 
     def get_best_placing_relation(self, next_states_info, best_relation):
-        get_max_visited = (max(next_states_info, key=lambda x: x.times_visited)).times_visited
+        get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
+
+        # Not the field 'times_visited', but win+lose counter
+        get_max_visited = get_max_visited_state.win_counter + get_max_visited_state.lose_counter
+
         visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
         win_rate_criteria = 0.50
         best_states = []
         for state in next_states_info:
-            state_win_rate = float(state.win_counter / state.times_visited)
-            if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
-                best_states.append(state)
+            wins_plus_loses = state.win_counter + state.lose_counter
+            if wins_plus_loses:
+                state_win_rate = float(state.win_counter / wins_plus_loses)
+                if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
+                    best_states.append(state)
         if best_states:
-            next_state = max(best_states, key=lambda x: float(x.win_counter / x.times_visited))
+            next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter+x.lose_counter)))
             best_relation = self.graph.find_placing_relation_info(self.current_state_info, next_state)
             return best_relation
         else:
@@ -385,16 +391,22 @@ class ImprovedAgent(ag.Agent):
         return next_states_info
 
     def get_best_taking_relation(self, next_states_info, best_relation, last_placed_chip):
-        get_max_visited = (max(next_states_info, key=lambda x: x.times_visited)).times_visited
+        get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
+
+        # Not the field 'times_visited', but win+lose counter
+        get_max_visited = get_max_visited_state.win_counter + get_max_visited_state.lose_counter
+
         visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
         win_rate_criteria = 0.50
         best_states = []
         for state in next_states_info:
-            state_win_rate = float(state.win_counter / state.times_visited)
-            if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
-                best_states.append(state)
+            wins_plus_loses = state.win_counter + state.lose_counter
+            if wins_plus_loses:
+                state_win_rate = float(state.win_counter / wins_plus_loses)
+                if state_win_rate >= win_rate_criteria and wins_plus_loses >= visited_criteria:
+                    best_states.append(state)
         if best_states:
-            next_state = max(best_states, key=lambda x: float(x.win_counter / x.times_visited))
+            next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
             best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state,
                                                                  last_placed_chip)
             return best_relation
