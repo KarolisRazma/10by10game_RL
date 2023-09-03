@@ -1,24 +1,16 @@
 # Components
 import src.game_components.board as board
 import src.game_components.color as clr
-import src.game_components.chip as cp
 import src.game_components.container as container
-
-# Agents
-import src.agents.brute_force_agent as bfag
-import src.agents.simple_agent as sag
-import src.agents.improved_agent as iag
-
-# StateInfo
-import src.agents.simple_agent_learning.state_info as ssti
-import src.agents.improved_agent_learning.state_info as isti
 
 # Utils
 import src.utilities.constants3x3 as c3x3
 import src.utilities.constants5x5 as c5x5
 import src.utilities.logger as logger
-import copy
+
 import random
+
+from src.utilities.state_changes import StateChangeData, StateChangeType, InitialStateData
 
 
 class Environment:
@@ -50,7 +42,7 @@ class Environment:
         self.episodes = 0
 
         # Field to store last played chip in list [row, col, value]
-        self.last_played_chip = None
+        self.last_placed_chip = None
 
         # Parameters
         self.scoring_parameter = scoring_parameter
@@ -118,7 +110,7 @@ class Environment:
         chip_index_in_container = self.get_random_index(len(self.container.chips))
         # append taken chip
         if not is_captured:
-            self.agents[agent_index].chips.append(self.container.draw_chip(chip_index_in_container))
+            self.agents[agent_index].hand_chips.append(self.container.draw_chip(chip_index_in_container))
         else:
             self.agents[agent_index].captured_chips.append(self.container.draw_chip(chip_index_in_container))
 
@@ -195,8 +187,7 @@ class Environment:
             return 1
         if self.agents[1].score >= self.score_to_win:
             return 2
-        if self.agents[0].score < self.score_to_win and self.agents[1].score < self.score_to_win \
-                and not self.container.chips:
+        if not self.container.chips:
             return 3
         return 0
 
@@ -256,25 +247,25 @@ class Environment:
 
     def log_turn_start(self, turn):
         self.log.add_log("info", "--------------------------------------")
-        self.log.add_log("info", "Turn for agent" + self.agents[turn].id)
+        self.log.add_log("info", "Turn for agent" + self.agents[turn].name)
         self.log.add_log("info", self.board.board_to_string())
         self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
         self.log.add_log("info", "--------------------------------------")
 
     def log_endgame_info(self):
         self.log.add_log("info", "game: {}".format(self.episodes))
-        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].id, self.agents[0].score))
-        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].id, self.agents[1].score))
+        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].name, self.agents[0].score))
+        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].name, self.agents[1].score))
 
     def make_placing_action(self, agent, placing_action):
         # Parse action into row/col/value
         row, col, value = self.parse_action(placing_action)
 
         # Updated last played chip by agent
-        self.last_played_chip = [row, col, value]
+        self.last_placed_chip = [row, col, value]
 
         # Get which chip to use in agent hand
-        chip_index = 0 if agent.chips[0].value == value else 1
+        chip_index = 0 if agent.hand_chips[0].value == value else 1
 
         # Take chip from agent's hand
         selected_chip = agent.use_chip(chip_index)
@@ -287,7 +278,7 @@ class Environment:
 
     @staticmethod
     def parse_action(action):
-        # Parse action into row/col/chip_index
+        # Parse action into row/col/value
         row = action.row
         col = action.col
         value = action.value
@@ -295,131 +286,46 @@ class Environment:
 
     def process_combinations(self, agent, enemy_agent, turn):
         # Check if somehow there is value of constantsnxn.scoring_parameter on the board
-        combinations = self.get_combinations(self.board.get_chip_at_index(self.last_played_chip[0]
+        combinations = self.get_combinations(self.board.get_chip_at_index(self.last_placed_chip[0]
                                                                           * self.board.border_length +
-                                                                          self.last_played_chip[1]))
+                                                                          self.last_placed_chip[1]))
         # Agent takes these chips
         # Except the one placed this round
         if combinations:
-            # If there's any combinations, update current state info for both agents
-            if isinstance(agent, sag.SimpleAgent):
-                agent.set_current_state_info()
-            elif isinstance(agent, iag.ImprovedAgent):
-                agent.set_current_state_info()
-            if isinstance(enemy_agent, sag.SimpleAgent):
-                enemy_agent.set_current_state_info()
-            elif isinstance(enemy_agent, iag.ImprovedAgent):
-                enemy_agent.set_current_state_info()
+            # Sets taking_combination to [chip_1, chip_2, ... chip_n]
+            combination = agent.select_taking_action(game_board=self.board,
+                                                     combinations=combinations,
+                                                     last_placed_chip=self.last_placed_chip)
+            # Execute selected taking action
+            self.exec_taking_loop(combination, agent, turn)
 
-            # If agent, whose turn is right now, is SimpleAgent, update graph with new taking actions
-            if isinstance(agent, sag.SimpleAgent):
-                chips_left = len(self.container.chips)
-                agent.process_new_taking_actions(self.board, self.environment_board_values,
-                                                 self.last_played_chip, enemy_agent.score, combinations, chips_left)
+            # Agents processing state changes after a chip placement (2.4)
+            agent.process_state_changes(changes_type=StateChangeType.TAKING,
+                                        changes_data=StateChangeData(is_my_turn=True,
+                                                                     game_board=self.board,
+                                                                     enemy_score=enemy_agent.score,
+                                                                     container_chips_count=len(self.container.chips),
+                                                                     taking_combination=combination,
+                                                                     last_placed_chip=self.last_placed_chip))
 
-            # Get taking action if agent is BruteForceAgent
-            if isinstance(agent, bfag.BruteForceAgent):
-                agent.get_actions_for_taking(combinations)
-                combination = combinations[agent.select_action().combination_index]
-                updated_action = []
-                for chip in combination:
-                    updated_action.append(chip.row)
-                    updated_action.append(chip.col)
-                    updated_action.append(chip.value)
-                taking_action = updated_action
-            # Get taking action if agent is SimpleAgent
-            elif isinstance(agent, sag.SimpleAgent):
-                taking_action = agent.select_taking_action(self.board, self.environment_board_values,
-                                                           self.last_played_chip)
-            elif isinstance(agent, iag.ImprovedAgent):
-                taking_action = agent.get_taking_action(self.board, combinations, self.last_played_chip)
-
-            # Save before executing taking action [for later use]
-            previuos_board_values = copy.deepcopy(self.environment_board_values)
-            # Executed selected taking action
-            self.make_taking_action(agent, taking_action, turn)
-
-            # If enemy agent is SimpleAgent type
-            # Update enemy agent next state info
-            # Add next state info to agent's paths
-            if isinstance(enemy_agent, sag.SimpleAgent) or isinstance(enemy_agent, iag.ImprovedAgent):
-                # Create combination from action
-                time_iterate = int(len(taking_action) / 3)
-                combination = []
-                for i in range(time_iterate):
-                    com_chip = cp.Chip(taking_action[3 * i + 2])
-                    com_chip.row = taking_action[3 * i + 0]
-                    com_chip.col = taking_action[3 * i + 1]
-                    combination.append(com_chip)
-
-            if isinstance(enemy_agent, sag.SimpleAgent):
-                # Before adding state, we need to acquire full state info (with state value)
-                next_state_info_for_enemy = ssti.StateInfo(board_values=self.environment_board_values, my_turn=0,
-                                                           my_score=enemy_agent.score, enemy_score=agent.score,
-                                                           chips_left=len(self.container.chips) - 1)
-
-                # Update the enemy agent's graph with next board states
-                enemy_agent.graph.add_game_state(current_state_values=previuos_board_values,
-                                                 next_state_values=self.environment_board_values,
-                                                 action_type='taking', action=combination,
-                                                 last_placed_chip=self.last_played_chip,
-                                                 current_state_game_info=enemy_agent.current_state_info,
-                                                 next_state_game_info=next_state_info_for_enemy)
-
-                # Update next state value
-                enemy_agent.next_state_info = enemy_agent.graph.find_game_state(next_state_info_for_enemy)
-                # Update path
-                enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)
-            elif isinstance(enemy_agent, iag.ImprovedAgent):
-                # Before adding state, we need to acquire full state info (with state value)
-
-                # There was a bug, so it some not very legal fix, but it works, so good
-                if isinstance(agent, bfag.BruteForceAgent):
-                    chips_left = len(self.container.chips) - 1
-                elif isinstance(agent, iag.ImprovedAgent):
-                    chips_left = agent.next_state_info.chips_left
-
-                next_state_info_for_enemy = isti.StateInfo(board_values=self.environment_board_values, my_turn=0,
-                                                           my_score=enemy_agent.score, enemy_score=agent.score,
-                                                           chips_left=chips_left)
-                enemy_agent.graph.add_game_state(next_state_info_for_enemy)
-                enemy_agent.graph.make_taking_rel(enemy_agent.current_state_info, next_state_info_for_enemy,
-                                                  combination, self.last_played_chip)
-                enemy_agent.next_state_info = enemy_agent.graph.find_game_state(next_state_info_for_enemy)
-                enemy_agent_taking_relation_info = enemy_agent.graph.find_taking_relation_info(
-                    enemy_agent.current_state_info, enemy_agent.next_state_info, self.last_played_chip
-                )
-                enemy_agent.last_episode_path.relation_info_list.append(enemy_agent_taking_relation_info)
-                enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)
-
+            enemy_agent.process_state_changes(changes_type=StateChangeType.TAKING,
+                                              changes_data=StateChangeData(is_my_turn=False,
+                                                                           game_board=self.board,
+                                                                           enemy_score=agent.score,
+                                                                           container_chips_count=len(
+                                                                               self.container.chips),
+                                                                           taking_combination=combination,
+                                                                           last_placed_chip=self.last_placed_chip))
             # Log how changed the game after the action
             self.log_after_taking()
 
-    def make_taking_action(self, agent, taking_action, turn):
-        # Change value parameters_counter if more parametres are included in relationship NEXT_TAKING
-        parameters_counter = 3
-        time_iterate = int(len(taking_action) / parameters_counter)
-
-        # Create combination from action
-        selected_combination = []
-        for i in range(time_iterate):
-            com_chip = cp.Chip(taking_action[3 * i + 2])
-            com_chip.row = taking_action[3 * i + 0]
-            com_chip.col = taking_action[3 * i + 1]
-            selected_combination.append(com_chip)
-
-        self.exec_taking_loop(selected_combination, agent, turn)
-
-        # Update environment state (board values)
-        self.environment_board_values = self.board.board_to_chip_values()
-
-    def exec_taking_loop(self, selected_combination, agent, turn):
-        for chip in selected_combination:
+    def exec_taking_loop(self, combination, agent, turn):
+        for chip in combination:
             # Tile where the chip belongs
             tile = self.board.get_tile_at_index(chip.row * self.board.border_length + chip.col)
 
             # If it's the same chip that was placed this round, agent can't take it
-            if self.last_played_chip[0] == chip.row and self.last_played_chip[1] == chip.col:
+            if self.last_placed_chip[0] == chip.row and self.last_placed_chip[1] == chip.col:
                 continue
 
             # Return to container
@@ -434,17 +340,11 @@ class Environment:
                 self.board.remove_chip(chip.row * self.board.border_length + chip.col)
                 agent.captured_chips.append(chip)
                 agent.score += 1
-                # From container, do not forget to check if container has chips!
+
                 # If container is not empty
                 if len(self.container.chips) > 0:
                     self.from_container_to_agent(turn, is_captured=True)
                 agent.score += 1
-                # If container is empty
-                # if len(self.container.chips) == 0:
-                #     end_game_flag = self.is_endgame()
-                #     if end_game_flag > 0:
-                #         self.deal_with_endgame(end_game_flag)
-                #         break
 
             # Collect chip normally
             if tile.color == clr.Color.WHITE:
@@ -454,17 +354,11 @@ class Environment:
                 agent.score += 1
 
     def round_ending(self, turn):
-        # Draw new chip from the container
-        # This is related to drawing after taking chip from blue tile
+        # Draw new chip from the container (check if container is not empty)
         if len(self.container.chips) > 0:
             self.from_container_to_agent(turn)
-        # else:
-        #     # Returning True --> it indicates, that game is ended and
-        #     # Game ending method is already executed, so just break the game loop
-        #     return True
 
-        # In the end of the round
-        # Check for end game conditions
+        # In the end of the round, check for end game conditions
         end_game_flag = self.is_endgame()
         if end_game_flag > 0:
             self.deal_with_endgame(end_game_flag)
@@ -472,100 +366,50 @@ class Environment:
         return False
 
     def start_episode(self):
-        # Initial game settings
+        # Initial game settings (1.1)
         turn = 0
         self.reset()
 
-        # Set initial environment board values
-        self.environment_board_values = self.board.board_to_chip_values()
-
-        # Store agents seperately for episode
-        # And assign agent_numbers
+        # Store agents seperately for episode (1.2)
         agent_0, agent_1 = self.agents[0], self.agents[1]
-        agent_0.agent_number, agent_1.agent_number = 0, 1
 
-        # Agent's deal with initial state of the game
-        # If they are type of SimpleAgent or ImprovedAgent, otherwise do nothing
-        if isinstance(agent_0, sag.SimpleAgent):
-            agent_0.set_initial_state_in_db(self.environment_board_values, chips_left=len(self.container.chips))
-        elif isinstance(agent_0, iag.ImprovedAgent):
-            agent_0.process_initial_state(self.environment_board_values, chips_left=len(self.container.chips))
-
-        if isinstance(agent_1, sag.SimpleAgent):
-            agent_1.set_initial_state_in_db(self.environment_board_values, chips_left=len(self.container.chips))
-        elif isinstance(agent_1, iag.ImprovedAgent):
-            agent_1.process_initial_state(self.environment_board_values, chips_left=len(self.container.chips))
-
-        # Game loop starts here
+        # Agents initial state processing (1.3)
+        agent_0.process_initial_state(initial_data=InitialStateData(game_board=self.board,
+                                                                    container_chips_count=len(self.container.chips),
+                                                                    is_starting=False,
+                                                                    ))
+        agent_1.process_initial_state(initial_data=InitialStateData(game_board=self.board,
+                                                                    container_chips_count=len(self.container.chips),
+                                                                    is_starting=False,
+                                                                    ))
+        # Game loop starts here (2)
         while True:
-            # Log start of the turn
             self.log_turn_start(turn)
 
-            # Get agent whose turn it is
-            # Also get enemy agent
+            # Get agent and enemy_agent (2.1)
             agent = agent_0 if turn == 0 else agent_1
             enemy_agent = agent_1 if turn == 0 else agent_0
 
-            # If agent is SimpleAgent, then
-            # Process every possible new next state from current state (try to add it to database)
-            if isinstance(agent, sag.SimpleAgent):
-                agent.process_new_placing_actions(current_board_values=self.environment_board_values,
-                                                  enemy_agent_score=enemy_agent.score, board=self.board,
-                                                  chips_left_in_the_container=len(self.container.chips))
+            # agent selects placing action (2.2)
+            placing_action = agent.select_placing_action(game_board=self.board)
 
-            # Get placing action if agent is BruteForceAgent
-            if isinstance(agent, bfag.BruteForceAgent):
-                agent.get_actions_for_placing(self.board)
-                placing_action = agent.select_action()
-            # Get placing action if agent is SimpleAgent
-            elif isinstance(agent, sag.SimpleAgent):
-                placing_action = agent.select_placing_action(self.board, self.environment_board_values)
-            elif isinstance(agent, iag.ImprovedAgent):
-                placing_action = agent.get_placing_action(self.board)
-
-            # Save before executing placing action [for later use]
-            previuos_board_values = copy.deepcopy(self.environment_board_values)
-            # Executed selected placing action
+            # Executed selected placing action (2.3)
             self.make_placing_action(agent, placing_action)
 
-            # If enemy agent is SimpleAgent or ImprovedAgent type
-            # Update enemy agent next state info
-            # Add next state info to agent's paths
-            if isinstance(enemy_agent, sag.SimpleAgent):
-                # Before adding state, we need to acquire full state info (with state value)
-                next_state_info_for_enemy = ssti.StateInfo(board_values=self.environment_board_values, my_turn=0,
-                                                           my_score=enemy_agent.score, enemy_score=agent.score,
-                                                           chips_left=len(self.container.chips) - 1)
-
-                # Update the enemy agent's graph with next board states
-                enemy_agent.graph.add_game_state(current_state_values=previuos_board_values,
-                                                 next_state_values=self.environment_board_values,
-                                                 action_type='placing', action=placing_action,
-                                                 last_placed_chip=None,
-                                                 current_state_game_info=enemy_agent.current_state_info,
-                                                 next_state_game_info=next_state_info_for_enemy)
-
-                # Update next state value
-                enemy_agent.next_state_info = enemy_agent.graph.find_game_state(next_state_info_for_enemy)
-                # Update path
-                enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)
-            elif isinstance(enemy_agent, iag.ImprovedAgent):
-                # Before adding state, we need to acquire full state info (with state value)
-                next_state_info_for_enemy = isti.StateInfo(board_values=self.environment_board_values, my_turn=0,
-                                                           my_score=enemy_agent.score, enemy_score=agent.score,
-                                                           chips_left=len(self.container.chips) - 1)
-                # Update the enemy agent's graph with next board states
-                enemy_agent.graph.add_game_state(next_state_info_for_enemy)
-                enemy_agent.graph.make_placing_rel(enemy_agent.current_state_info,
-                                                   next_state_info_for_enemy, placing_action)
-
-                enemy_agent.next_state_info = enemy_agent.graph.find_game_state(next_state_info_for_enemy)
-                enemy_agent_placing_relation_info = enemy_agent.graph.find_placing_relation_info(
-                    enemy_agent.current_state_info, enemy_agent.next_state_info
-                )
-                enemy_agent.last_episode_path.relation_info_list.append(enemy_agent_placing_relation_info)
-                enemy_agent.last_episode_path.state_info_list.append(enemy_agent.next_state_info)
-
+            # Agents processing state changes after a chip placement (2.4)
+            agent.process_state_changes(changes_type=StateChangeType.PLACING,
+                                        changes_data=StateChangeData(is_my_turn=True,
+                                                                     game_board=self.board,
+                                                                     enemy_score=enemy_agent.score,
+                                                                     container_chips_count=len(self.container.chips),
+                                                                     placing_action=placing_action))
+            enemy_agent.process_state_changes(changes_type=StateChangeType.PLACING,
+                                              changes_data=StateChangeData(is_my_turn=False,
+                                                                           game_board=self.board,
+                                                                           enemy_score=agent.score,
+                                                                           container_chips_count=len(
+                                                                               self.container.chips),
+                                                                           placing_action=placing_action))
             # Log how the game changed after the action
             self.log_after_placing()
 
@@ -577,17 +421,6 @@ class Environment:
 
             if ending_flag:
                 break
-
-            # Update current state info for both agents if they are SimpleAgent type agents
-            if isinstance(agent, sag.SimpleAgent):
-                agent.set_current_state_info()
-            elif isinstance(agent, iag.ImprovedAgent):
-                agent.set_current_state_info()
-
-            if isinstance(enemy_agent, sag.SimpleAgent):
-                enemy_agent.set_current_state_info()
-            elif isinstance(enemy_agent, iag.ImprovedAgent):
-                enemy_agent.set_current_state_info()
 
             # Next agent's turn
             turn = 0 if turn == 1 else 1
