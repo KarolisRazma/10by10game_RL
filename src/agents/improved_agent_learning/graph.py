@@ -2,6 +2,7 @@ import src.agents.actions.placing_action as pan
 import src.agents.improved_agent_learning.state_info as sti
 import src.agents.improved_agent_learning.placing_relation_info as pri
 import src.agents.improved_agent_learning.taking_relation_info as tri
+import src.game_components.chip as cp
 
 
 # Structure of the graph
@@ -207,8 +208,17 @@ class Graph:
         record = result.single(strict=True).data()
         combination = record['r.combination']
 
-        # RETURNS list of chips row/col/value to remove
-        return combination
+        # Convert to [chip1, chip2, ...]
+        time_iterate = int(len(combination) / 3)
+        updated_combination = []
+        for i in range(time_iterate):
+            com_chip = cp.Chip(combination[3 * i + 2])
+            com_chip.row = combination[3 * i + 0]
+            com_chip.col = combination[3 * i + 1]
+            updated_combination.append(com_chip)
+
+        # RETURNS list of chip objects to remove
+        return updated_combination
 
     # Returns StateInfo object
     def find_game_state(self, state_info):
@@ -291,48 +301,6 @@ class Graph:
                                   board_values=state_info.board_values, turn=state_info.my_turn,
                                   my_score=state_info.my_score, enemy_score=state_info.enemy_score,
                                   chips_left=state_info.chips_left)
-        # if action_type == 'placing':
-        #     result = self.session.run(
-        #         """
-        #         MATCH (:GameState {
-        #         board_values: $board_values,
-        #         my_turn: $turn,
-        #         my_score: $my_score,
-        #         enemy_score: $enemy_score,
-        #         chips_left: $chips_left})-[:NEXT_PLACING]->(c:GameState)
-        #         RETURN c
-        #         """,
-        #         board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-        #         enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
-        #     )
-        # if action_type == 'taking':
-        #     result = self.session.run(
-        #         """
-        #         MATCH (:GameState {
-        #         board_values: $board_values,
-        #         my_turn: $turn,
-        #         my_score: $my_score,
-        #         enemy_score: $enemy_score,
-        #         chips_left: $chips_left})-[:NEXT_TAKING]->(c:GameState)
-        #         RETURN c
-        #         """,
-        #         board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-        #         enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
-        #     )
-        # if action_type == 'any':
-        #     result = self.session.run(
-        #         """
-        #         MATCH (:GameState {
-        #         board_values: $board_values,
-        #         my_turn: $turn,
-        #         my_score: $my_score,
-        #         enemy_score: $enemy_score,
-        #         chips_left: $chips_left})-->(c:GameState)
-        #         RETURN c
-        #         """,
-        #         board_values=state_info.board_values, turn=state_info.my_turn, my_score=state_info.my_score,
-        #         enemy_score=state_info.enemy_score, chips_left=state_info.chips_left,
-        #     )
 
         records = list(result)
         updated_records = []
@@ -477,10 +445,21 @@ class Graph:
         # Simplify dict
         record = (result.single(strict=True)).data()
 
-        # Create TakingRelationInfo
+        # Prepare to create TakingRelationInfo
         combination = record['r.combination']
         last_placed_chip = record['r.last_placed_chip']
-        taking_relation_info = tri.TakingRelationInfo(combination, last_placed_chip)
+
+        # Convert to [chip1, chip2, ...]
+        time_iterate = int(len(combination) / 3)
+        updated_combination = []
+        for i in range(time_iterate):
+            com_chip = cp.Chip(combination[3 * i + 2])
+            com_chip.row = combination[3 * i + 0]
+            com_chip.col = combination[3 * i + 1]
+            updated_combination.append(com_chip)
+
+        # Finally create TakingRelationInfo
+        taking_relation_info = tri.TakingRelationInfo(updated_combination, last_placed_chip)
 
         # Check if 'q_value' is set in the database
         if 'q_value' in record.keys():
@@ -535,10 +514,21 @@ class Graph:
                 updated_records.append(placing_relation_info)
             # Taking relation
             else:
-                # Create TakingRelationInfo
+                # Prepare to create TakingRelationInfo
                 combination = record['r.combination']
                 last_placed_chip = record['r.last_placed_chip']
-                taking_relation_info = tri.TakingRelationInfo(combination, last_placed_chip)
+
+                # Convert to [chip1, chip2, ...]
+                time_iterate = int(len(combination) / 3)
+                updated_combination = []
+                for i in range(time_iterate):
+                    com_chip = cp.Chip(combination[3 * i + 2])
+                    com_chip.row = combination[3 * i + 0]
+                    com_chip.col = combination[3 * i + 1]
+                    updated_combination.append(com_chip)
+
+                # Finally create TakingRelationInfo
+                taking_relation_info = tri.TakingRelationInfo(updated_combination, last_placed_chip)
                 taking_relation_info.q_value = q_value
                 updated_records.append(taking_relation_info)
 
@@ -611,6 +601,13 @@ class Graph:
         return state_info
 
     def find_next_state_by_taking_relation(self, current_state_info, relation_info):
+        # Restructurize combination
+        updated_combination = []
+        for chip in relation_info.combination:
+            updated_combination.append(chip.row)
+            updated_combination.append(chip.col)
+            updated_combination.append(chip.value)
+
         result = self.session.run(
             """
             MATCH (:GameState {
@@ -628,7 +625,7 @@ class Graph:
             c_board_values=current_state_info.board_values, c_turn=current_state_info.my_turn,
             c_my_score=current_state_info.my_score, c_enemy_score=current_state_info.enemy_score,
             c_chips_left=current_state_info.chips_left,
-            combination=relation_info.combination, last_placed_chip=relation_info.last_placed_chip
+            combination=updated_combination, last_placed_chip=relation_info.last_placed_chip
         )
 
         # Simplify dict

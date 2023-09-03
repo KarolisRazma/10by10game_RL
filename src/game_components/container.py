@@ -35,5 +35,5 @@ class Container:
             return chip                 # return the removed chip
     
     def reset(self):
-        self.chips = []  # TODO check how to empty list correctly
+        self.chips = []
         self.fill_container(self.chips_types, self.chips_per_type)

@@ -1,50 +1,51 @@
-import math
-import src.agents.actions.placing_action as pan
+from abc import ABC, abstractmethod
 
 
-class Agent:
+class Agent(ABC):
 
-    def __init__(self, nickname):
-        # Agent stuff, game details
-        self.id = nickname
+    def __init__(self, name):
+        # Agent name
+        self.name = name
+
+        # Episode details
         self.score = 0
-        self.chips = []  # current chips in hand
-        self.captured_chips = []  # len(chips_captured) = score
+        self.hand_chips = []
+        self.captured_chips = []
+
+        # Episodes results counters
         self.wins = 0
         self.draws = 0
 
-        self.is_last_game_won = None
-        self.is_last_game_drawn = None
+        # Endgame result flags: None at init
+        self.is_game_won = None
+        self.is_game_drawn = None
 
-        # Agent's possible actions at given position
-        self.actions = []
-
-        # Assigned by environment
-        self.agent_number = None
-
-    # reset score/chips/captured_chips after episode is complete
+    # Resets episode details
     def reset(self):
         self.score = 0
-        self.chips = []
+        self.hand_chips = []
         self.captured_chips = []
+        self.is_game_won = None
+        self.is_game_drawn = None
 
-    # returns used chip and deletes it from agent's inventory
+    # Returns used chip and deletes it from agent's hand
     def use_chip(self, chip_index):
-        chip = self.chips[chip_index]
-        del self.chips[chip_index]
+        chip = self.hand_chips[chip_index]
+        del self.hand_chips[chip_index]
         return chip
 
-    # parameter game_board is object from class Board
-    def get_actions_for_placing(self, game_board):
-        self.actions = []  # first, clear action list
-        # loop over all tiles
-        for tile in range(len(game_board.tiles)):
-            if game_board.is_tile_empty(tile):
-                tile_row = math.floor(tile / game_board.border_length)
-                tile_col = tile % game_board.border_length
-                self.actions.append(pan.PlaceChipAction(tile_row, tile_col, self.chips[0].value))
-                self.actions.append(pan.PlaceChipAction(tile_row, tile_col, self.chips[1].value))
+    @abstractmethod
+    def process_initial_state(self, initial_data):
+        pass
 
+    @abstractmethod
+    def process_state_changes(self, changes_type, changes_data):
+        pass
 
+    @abstractmethod
+    def select_placing_action(self, game_board):
+        pass
 
-
+    @abstractmethod
+    def select_taking_action(self, game_board, combinations, last_placed_chip):
+        pass

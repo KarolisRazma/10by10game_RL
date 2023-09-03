@@ -1,22 +1,34 @@
+import math
 import random
-import src.agents.agent as ag
-import src.agents.actions.taking_action as tan
+from src.agents.agent import Agent
+from src.agents.actions.placing_action import PlaceChipAction
 
 
-class BruteForceAgent(ag.Agent):
+class BruteForceAgent(Agent):
 
-    def __init__(self, nickname):
-        super().__init__(nickname)
+    def __init__(self, name):
+        super().__init__(name)
 
-    # Returns random action (Placing/Taking) from actions list
-    def select_action(self):
-        random_index = random.randint(0, len(self.actions) - 1)
-        return self.actions[random_index]
+    def select_placing_action(self, game_board):
+        return self.get_action_for_placing(game_board)
 
-    # Added old function from legacy code, but it should work
-    # for brute force agent (TakingAction)
-    def get_actions_for_taking(self, combinations):
-        self.actions = []  # first, clear action list
-        # loop over all combinations
-        for combination in range(len(combinations)):
-            self.actions.append(tan.TakeChipsAction(combination))
+    def select_taking_action(self, game_board, combinations, last_placed_chip):
+        random_combination_index = random.randint(0, len(combinations) - 1)
+        return combinations[random_combination_index]
+
+    def get_action_for_placing(self, game_board):
+        # Loop while action is not selected
+        # fixme can cause problems if board is full
+        while True:
+            random_tile_index = random.randint(0, len(game_board.tiles) - 1)
+            if game_board.is_tile_empty(random_tile_index):
+                tile_row = math.floor(random_tile_index / game_board.border_length)
+                tile_col = random_tile_index % game_board.border_length
+                hand_chip_index = random.randint(0, 1)
+                return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
+
+    def process_initial_state(self, initial_data):
+        pass
+
+    def process_state_changes(self, changes_type, changes_data):
+        pass

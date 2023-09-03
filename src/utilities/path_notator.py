@@ -1,3 +1,5 @@
+# TODO this is not working properly, do not use it
+
 import copy
 import src.agents.improved_agent_learning.placing_relation_info as ipri
 import src.agents.improved_agent_learning.taking_relation_info as itri

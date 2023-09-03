@@ -1,8 +1,8 @@
-import src.utilities.game_interface as gi
-import src.utilities.game_interface_constants as gic
+from src.game_interface import GameInterface
+import src.utilities.gi_constants as GI_CONSTANTS
 
 if __name__ == "__main__":
-    interface = gi.GameInterface(gic.ENVIRONMENT_3X3)
+    interface = GameInterface(GI_CONSTANTS.ENVIRONMENT_3X3)
     interface.show_initial_options()
 
 

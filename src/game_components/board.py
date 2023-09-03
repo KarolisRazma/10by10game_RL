@@ -89,7 +89,6 @@ class Board:
         if index < self.board_size:
             return self.tiles[index]
 
-    # TODO check if this __eq__ is okay
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
