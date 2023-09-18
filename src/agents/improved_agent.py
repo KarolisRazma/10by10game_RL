@@ -74,23 +74,16 @@ class ImprovedAgent(ag.Agent):
                                     chips_left=chips_left)
 
         # Update agent's graph with next board state and placing relation
-        self.graph.add_game_state(next_state_info)
-        self.graph.make_placing_rel(self.current_state_info, next_state_info, placing_action)
-
-        # Get next state info from database (involves updated counters)
-        next_state_info = self.graph.find_game_state(next_state_info)
-
-        # Get placing relation info from database (involves q-value)
-        placing_relation_info = self.graph.find_placing_relation_info(
-            self.current_state_info, next_state_info
-        )
+        updated_next_state_info, placing_relation_info = \
+            self.graph.create_next_node_and_make_placing_relation(self.current_state_info,
+                                                                  next_state_info, placing_action)
 
         # Append placing relation and next state to path
         self.last_episode_path.relation_info_list.append(placing_relation_info)
-        self.last_episode_path.state_info_list.append(next_state_info)
+        self.last_episode_path.state_info_list.append(updated_next_state_info)
 
         # Update current state
-        self.current_state_info = next_state_info
+        self.current_state_info = updated_next_state_info
 
     def process_state_changes_after_taking(self, changes_data: StateChangeData):
         board_values = changes_data.game_board.board_to_chip_values()
@@ -99,7 +92,8 @@ class ImprovedAgent(ag.Agent):
         enemy_score = changes_data.enemy_score
         chips_left = changes_data.container_chips_count
         taking_combination = changes_data.taking_combination
-        last_placed_chip = changes_data.last_placed_chip
+        last_placed_chip = [changes_data.last_placed_chip.row, changes_data.last_placed_chip.col,
+                            changes_data.last_placed_chip.value]
 
         # Create StateInfo object with next state data
         next_state_info = StateInfo(board_values=board_values,
@@ -109,23 +103,16 @@ class ImprovedAgent(ag.Agent):
                                     chips_left=chips_left)
 
         # Update agent's graph with next board state and taking relation
-        self.graph.add_game_state(next_state_info)
-        self.graph.make_taking_rel(self.current_state_info, next_state_info, taking_combination, last_placed_chip)
-
-        # Get next state info from database (involves updated counters)
-        next_state_info = self.graph.find_game_state(next_state_info)
-
-        # Get taking relation info from database (involves q-value)
-        taking_relation_info = self.graph.find_taking_relation_info(
-            self.current_state_info, next_state_info, last_placed_chip
-        )
+        updated_next_state_info, taking_relation_info = \
+            self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info,
+                                                                 taking_combination, last_placed_chip)
 
         # Append taking relation and next state to path
         self.last_episode_path.relation_info_list.append(taking_relation_info)
-        self.last_episode_path.state_info_list.append(next_state_info)
+        self.last_episode_path.state_info_list.append(updated_next_state_info)
 
         # Update current state
-        self.current_state_info = next_state_info
+        self.current_state_info = updated_next_state_info
 
     def get_random_action_for_placing(self, game_board):
         # Loop while action is not selected
@@ -164,8 +151,7 @@ class ImprovedAgent(ag.Agent):
             chips_left=container_chips_count)
 
         # Add to db
-        self.graph.add_game_state(initial_state, is_initial_state=True)
-        initial_state_updated = self.graph.find_game_state(initial_state)
+        initial_state_updated = self.graph.add_game_state(initial_state, is_initial_state=True)
         self.current_state_info = initial_state_updated
         self.last_episode_path.state_info_list.append(initial_state_updated)
 
@@ -296,6 +282,8 @@ class ImprovedAgent(ag.Agent):
         # Sort list by q_value in decending order
         relations.sort(key=lambda x: x.q_value, reverse=True)
 
+        # Before filtering irrelevant relations, reorganize Chip object into row/col/value list
+        last_placed_chip = [last_placed_chip.row, last_placed_chip.col, last_placed_chip.value]
         # Filter irrelevant relations(the ones, which cannot be executed)
         filtered_relations = self.filter_taking_relations(relations, combinations, last_placed_chip)
 

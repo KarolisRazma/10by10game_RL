@@ -2,6 +2,7 @@
 import src.game_components.board as board
 import src.game_components.color as clr
 import src.game_components.container as container
+from src.game_components.chip import Chip
 
 # Utils
 import src.utilities.constants3x3 as c3x3
@@ -25,10 +26,6 @@ class Environment:
         # Create board
         self.board = board.Board(length=board_length)
 
-        # Current game state, same as board,
-        # just converted into list of chip values
-        self.environment_board_values = [0] * self.board.board_size
-
         # Create container
         self.container = container.Container(container_capacity, chips_types, chips_per_type)
 
@@ -41,7 +38,7 @@ class Environment:
         # Count episodes played
         self.episodes = 0
 
-        # Field to store last played chip in list [row, col, value]
+        # Field to store last placed chip (Chip object)
         self.last_placed_chip = None
 
         # Parameters
@@ -91,8 +88,6 @@ class Environment:
         self.prepare_game()  # game prep method (set initial chips, place first chip, etc)
 
     def prepare_game(self):
-        # Set environment current state to root
-        self.environment_board_values = [0] * self.board.board_size
         self.from_container_to_agent(0)
         self.from_container_to_agent(0)
         self.from_container_to_agent(1)
@@ -197,40 +192,40 @@ class Environment:
         self.episodes += 1
         if end_game_flag == 1:
             self.agents[0].wins += 1
-            self.agents[0].is_last_game_won = True
-            self.agents[1].is_last_game_won = False
-            self.agents[0].is_last_game_drawn = False
-            self.agents[1].is_last_game_drawn = False
+            self.agents[0].is_game_won = True
+            self.agents[1].is_game_won = False
+            self.agents[0].is_game_drawn = False
+            self.agents[1].is_game_drawn = False
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
-            self.agents[0].is_last_game_won = False
-            self.agents[1].is_last_game_won = True
-            self.agents[0].is_last_game_drawn = False
-            self.agents[1].is_last_game_drawn = False
+            self.agents[0].is_game_won = False
+            self.agents[1].is_game_won = True
+            self.agents[0].is_game_drawn = False
+            self.agents[1].is_game_drawn = False
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
-                self.agents[0].is_last_game_won = True
-                self.agents[1].is_last_game_won = False
-                self.agents[0].is_last_game_drawn = False
-                self.agents[1].is_last_game_drawn = False
+                self.agents[0].is_game_won = True
+                self.agents[1].is_game_won = False
+                self.agents[0].is_game_drawn = False
+                self.agents[1].is_game_drawn = False
                 return
             elif self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
-                self.agents[0].is_last_game_won = False
-                self.agents[1].is_last_game_won = True
-                self.agents[0].is_last_game_drawn = False
-                self.agents[1].is_last_game_drawn = False
+                self.agents[0].is_game_won = False
+                self.agents[1].is_game_won = True
+                self.agents[0].is_game_drawn = False
+                self.agents[1].is_game_drawn = False
                 return
             else:
                 self.agents[0].draws += 1
                 self.agents[1].draws += 1
-                self.agents[0].is_last_game_won = False
-                self.agents[1].is_last_game_won = False
-                self.agents[0].is_last_game_drawn = True
-                self.agents[1].is_last_game_drawn = True
+                self.agents[0].is_game_won = False
+                self.agents[1].is_game_won = False
+                self.agents[0].is_game_drawn = True
+                self.agents[1].is_game_drawn = True
                 return
 
     def log_after_taking(self):
@@ -262,7 +257,7 @@ class Environment:
         row, col, value = self.parse_action(placing_action)
 
         # Updated last played chip by agent
-        self.last_placed_chip = [row, col, value]
+        self.last_placed_chip = Chip(value, row, col)
 
         # Get which chip to use in agent hand
         chip_index = 0 if agent.hand_chips[0].value == value else 1
@@ -272,9 +267,6 @@ class Environment:
 
         # Agent place one chip on the board
         self.place_chip_on_board(selected_chip, row, col, self.board.border_length)
-
-        # Update environment state (board values)
-        self.environment_board_values = self.board.board_to_chip_values()
 
     @staticmethod
     def parse_action(action):
@@ -286,9 +278,8 @@ class Environment:
 
     def process_combinations(self, agent, enemy_agent, turn):
         # Check if somehow there is value of constantsnxn.scoring_parameter on the board
-        combinations = self.get_combinations(self.board.get_chip_at_index(self.last_placed_chip[0]
-                                                                          * self.board.border_length +
-                                                                          self.last_placed_chip[1]))
+        combinations = self.get_combinations(self.last_placed_chip)
+
         # Agent takes these chips
         # Except the one placed this round
         if combinations:
@@ -325,7 +316,7 @@ class Environment:
             tile = self.board.get_tile_at_index(chip.row * self.board.border_length + chip.col)
 
             # If it's the same chip that was placed this round, agent can't take it
-            if self.last_placed_chip[0] == chip.row and self.last_placed_chip[1] == chip.col:
+            if self.last_placed_chip.row == chip.row and self.last_placed_chip.col == chip.col:
                 continue
 
             # Return to container
@@ -376,7 +367,7 @@ class Environment:
         # Agents initial state processing (1.3)
         agent_0.process_initial_state(initial_data=InitialStateData(game_board=self.board,
                                                                     container_chips_count=len(self.container.chips),
-                                                                    is_starting=False,
+                                                                    is_starting=True,
                                                                     ))
         agent_1.process_initial_state(initial_data=InitialStateData(game_board=self.board,
                                                                     container_chips_count=len(self.container.chips),
