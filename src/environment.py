@@ -1,4 +1,6 @@
 # Components
+import time
+
 import src.game_components.board as board
 import src.game_components.color as clr
 import src.game_components.container as container
@@ -33,7 +35,9 @@ class Environment:
         self.agents = []
 
         # Create instance of logger
-        self.log = logger.Logger("logs.txt")
+        self.game_logger = logger.Logger("game_logger", "game_logs.log")
+        self.benchmark_logger = logger.Logger("benchmark_logger", "benchmark_logs.log")
+        self.benchmark_logger_2 = logger.Logger("benchmark_logger2", "benchmark_logs_more_details.log")
 
         # Count episodes played
         self.episodes = 0
@@ -229,28 +233,28 @@ class Environment:
                 return
 
     def log_after_taking(self):
-        self.log.add_log("info", "--------------------------------------")
-        self.log.add_log("info", "After taking chips from board:")
-        self.log.add_log("info", self.board.board_to_string())
-        self.log.add_log("info", "--------------------------------------")
+        self.game_logger.write("--------------------------------------")
+        self.game_logger.write("After taking chips from board:")
+        self.game_logger.write(self.board.board_to_string())
+        self.game_logger.write("--------------------------------------")
 
     def log_after_placing(self):
-        self.log.add_log("info", "--------------------------------------")
-        self.log.add_log("info", "After placing chip:")
-        self.log.add_log("info", self.board.board_to_string())
-        self.log.add_log("info", "--------------------------------------")
+        self.game_logger.write("--------------------------------------")
+        self.game_logger.write("After placing chip:")
+        self.game_logger.write(self.board.board_to_string())
+        self.game_logger.write("--------------------------------------")
 
     def log_turn_start(self, turn):
-        self.log.add_log("info", "--------------------------------------")
-        self.log.add_log("info", "Turn for agent" + self.agents[turn].name)
-        self.log.add_log("info", self.board.board_to_string())
-        self.log.add_log("info", "Chips left in container " + str(len(self.container.chips)))
-        self.log.add_log("info", "--------------------------------------")
+        self.game_logger.write("--------------------------------------")
+        self.game_logger.write("Turn for agent" + self.agents[turn].name)
+        self.game_logger.write(self.board.board_to_string())
+        self.game_logger.write("Chips left in container " + str(len(self.container.chips)))
+        self.game_logger.write("--------------------------------------")
 
     def log_endgame_info(self):
-        self.log.add_log("info", "game: {}".format(self.episodes))
-        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[0].name, self.agents[0].score))
-        self.log.add_log("info", "agent: {} --- score: {}".format(self.agents[1].name, self.agents[1].score))
+        self.game_logger.write("game: {}".format(self.episodes))
+        self.game_logger.write("agent: {} --- score: {}".format(self.agents[0].name, self.agents[0].score))
+        self.game_logger.write("agent: {} --- score: {}".format(self.agents[1].name, self.agents[1].score))
 
     def make_placing_action(self, agent, placing_action):
         # Parse action into row/col/value
@@ -283,13 +287,20 @@ class Environment:
         # Agent takes these chips
         # Except the one placed this round
         if combinations:
+            self.benchmark_logger_2.write("\nGet combination from agent")
+            start_timer = time.time()
             # Sets taking_combination to [chip_1, chip_2, ... chip_n]
             combination = agent.select_taking_action(game_board=self.board,
                                                      combinations=combinations,
                                                      last_placed_chip=self.last_placed_chip)
+            end_timer = time.time()
+            self.benchmark_logger_2.write("{0:.3f}".format(end_timer - start_timer))
+
             # Execute selected taking action
             self.exec_taking_loop(combination, agent, turn)
 
+            self.benchmark_logger_2.write("\nProcess state changes after taking")
+            start_timer = time.time()
             # Agents processing state changes after a chip placement (2.4)
             agent.process_state_changes(changes_type=StateChangeType.TAKING,
                                         changes_data=StateChangeData(is_my_turn=True,
@@ -307,6 +318,8 @@ class Environment:
                                                                                self.container.chips),
                                                                            taking_combination=combination,
                                                                            last_placed_chip=self.last_placed_chip))
+            end_timer = time.time()
+            self.benchmark_logger_2.write("{0:.3f}".format(end_timer - start_timer))
             # Log how changed the game after the action
             self.log_after_taking()
 
@@ -365,6 +378,9 @@ class Environment:
         agent_0, agent_1 = self.agents[0], self.agents[1]
 
         # Agents initial state processing (1.3)
+        self.benchmark_logger_2.write("----------------------------------")
+        self.benchmark_logger_2.write("\nInitial state")
+        start_timer = time.time()
         agent_0.process_initial_state(initial_data=InitialStateData(game_board=self.board,
                                                                     container_chips_count=len(self.container.chips),
                                                                     is_starting=True,
@@ -373,8 +389,12 @@ class Environment:
                                                                     container_chips_count=len(self.container.chips),
                                                                     is_starting=False,
                                                                     ))
+        end_timer = time.time()
+        self.benchmark_logger_2.write("{0:.3f}".format(end_timer - start_timer))
+
         # Game loop starts here (2)
         while True:
+            self.benchmark_logger_2.write("----------------")
             self.log_turn_start(turn)
 
             # Get agent and enemy_agent (2.1)
@@ -382,11 +402,17 @@ class Environment:
             enemy_agent = agent_1 if turn == 0 else agent_0
 
             # agent selects placing action (2.2)
+            self.benchmark_logger_2.write("\nGet placing action")
+            start_timer = time.time()
             placing_action = agent.select_placing_action(game_board=self.board)
+            end_timer = time.time()
+            self.benchmark_logger_2.write("{0:.3f}".format(end_timer - start_timer))
 
-            # Executed selected placing action (2.3)
+            # Execute selected placing action (2.3)
             self.make_placing_action(agent, placing_action)
 
+            self.benchmark_logger_2.write("\nProcess stage changes after placing")
+            start_timer = time.time()
             # Agents processing state changes after a chip placement (2.4)
             agent.process_state_changes(changes_type=StateChangeType.PLACING,
                                         changes_data=StateChangeData(is_my_turn=True,
@@ -401,6 +427,9 @@ class Environment:
                                                                            container_chips_count=len(
                                                                                self.container.chips),
                                                                            placing_action=placing_action))
+            end_timer = time.time()
+            self.benchmark_logger_2.write("{0:.3f}".format(end_timer - start_timer))
+
             # Log how the game changed after the action
             self.log_after_placing()
 

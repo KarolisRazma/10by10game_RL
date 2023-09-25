@@ -180,6 +180,7 @@ class ImprovedAgent(ag.Agent):
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
 
+        # TODO change to int EXPLORE/EXPLOIT 0/1
         if current_behaviour == "EXPLORE":
             return self.do_explore_placing(game_board)
         elif current_behaviour == "EXPLOIT":
