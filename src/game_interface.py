@@ -13,7 +13,7 @@ import src.utilities.constants5x5 as c5x5
 import src.utilities.gi_constants as GI_CONSTANTS
 
 # Agents
-from src.agents.brute_force_agent import BruteForceAgent
+from src.agents.brute_force_agent import RandomWalkerAgent
 from src.agents.improved_agent import ImprovedAgent
 
 # Misc
@@ -51,8 +51,8 @@ class GameInterface:
                                            c5x5.score_to_win)
 
         # Agents creation
-        self.brute_force_agent_1 = BruteForceAgent(GI_CONSTANTS.BRUTE_1)
-        self.brute_force_agent_2 = BruteForceAgent(GI_CONSTANTS.BRUTE_2)
+        self.random_walker_agent_1 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_1)
+        self.random_walker_agent_2 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_2)
 
         # TODO Create Improved Agents here
 
@@ -78,9 +78,9 @@ class GameInterface:
                                 GI_CONSTANTS.EXIT]
 
         # Agent vs Agent pairs list
-        self.agents_pairs_options = [GI_CONSTANTS.BRUTE_VS_BRUTE,
-                                     GI_CONSTANTS.IMPROVED_AGENT_1_VS_BRUTE,
-                                     GI_CONSTANTS.IMPROVED_AGENT_2_VS_BRUTE,
+        self.agents_pairs_options = [GI_CONSTANTS.RANDOM_WALKER_VS_RANDOM_WALKER,
+                                     GI_CONSTANTS.IMPROVED_AGENT_1_VS_RANDOM_WALKER,
+                                     GI_CONSTANTS.IMPROVED_AGENT_2_VS_RANDOM_WALKER,
                                      GI_CONSTANTS.IMPROVED_AGENT_1_VS_IMPROVED_AGENT_2,
                                      GI_CONSTANTS.RETURN]
 
@@ -155,16 +155,16 @@ class GameInterface:
                 continue
             if choice == 1:
                 self.environment.clear_agents()
-                self.environment.set_agent(self.brute_force_agent_1)
-                self.environment.set_agent(self.brute_force_agent_2)
+                self.environment.set_agent(self.random_walker_agent_1)
+                self.environment.set_agent(self.random_walker_agent_2)
             elif choice == 2:
                 self.environment.clear_agents()
                 self.environment.set_agent(self.improved_agent_1)
-                self.environment.set_agent(self.brute_force_agent_1)
+                self.environment.set_agent(self.random_walker_agent_1)
             elif choice == 3:
                 self.environment.clear_agents()
                 self.environment.set_agent(self.improved_agent_2)
-                self.environment.set_agent(self.brute_force_agent_1)
+                self.environment.set_agent(self.random_walker_agent_1)
             elif choice == 4:
                 self.environment.clear_agents()
                 self.environment.set_agent(self.improved_agent_1)

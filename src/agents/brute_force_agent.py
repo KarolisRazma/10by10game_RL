@@ -3,8 +3,9 @@ import random
 from src.agents.agent import Agent
 from src.agents.actions.placing_action import PlaceChipAction
 
+
 # TODO change class name to RandomWalker
-class BruteForceAgent(Agent):
+class RandomWalkerAgent(Agent):
 
     def __init__(self, name):
         super().__init__(name)
