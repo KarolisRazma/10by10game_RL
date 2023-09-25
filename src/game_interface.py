@@ -19,6 +19,7 @@ from src.agents.improved_agent import ImprovedAgent
 # Misc
 import time
 
+from src.utilities import logger
 
 # Database
 uri = "bolt://localhost:7687"
@@ -105,6 +106,24 @@ class GameInterface:
             option_counter += 1
 
     def show_initial_options(self):
+
+        # logggg = logger.Logger("benchmark_logger3", "test.log")
+        # while True:
+        #     start_time = time.time()
+        #     query = \
+        #         f"""
+        #         MATCH (:GameState {{
+        #         board_values: [0, 0, 0, 0, 1, 0, 0, 0, 2],
+        #         my_turn: false,
+        #         my_score: 0,
+        #         enemy_score: 0}})
+        #         -[r:NEXT_PLACING]->(:GameState)
+        #         RETURN r
+        #         """
+        #     graph_improved_agent_2.session.run(query)
+        #     end_time = time.time()
+        #     logggg.write("{0:.3f}".format(end_time - start_time))
+
         while True:
             print(f'\n')
             self.display_options(self.initial_options)
@@ -182,8 +201,14 @@ class GameInterface:
             for i in range(episodes):
 
                 # Play episode
+                self.environment.benchmark_logger.write("\nEpisode playing time")
+                timer_start = time.time()
                 self.environment.start_episode()
+                timer_end = time.time()
+                self.environment.benchmark_logger.write(timer_end - timer_start)
 
+                self.environment.benchmark_logger.write("\nEpisode evaluating time")
+                timer_start = time.time()
                 # Evaluate ImprovedAgent path
                 if isinstance(self.environment.agents[0], ImprovedAgent):
                     agent = self.environment.agents[0]
@@ -193,16 +218,20 @@ class GameInterface:
                 if isinstance(self.environment.agents[1], ImprovedAgent):
                     agent = self.environment.agents[1]
                     agent.eval_path_after_episode()
+                timer_end = time.time()
+                self.environment.benchmark_logger.write(timer_end - timer_start)
 
                 # Log wins/loses/draws
-                self.environment.log.add_log("info", f'Agent [{self.environment.agents[0].name}]'
-                                                     f' won {self.environment.agents[0].wins}')
-                self.environment.log.add_log("info", f'Agent [{self.environment.agents[1].name}]'
-                                                     f' won {self.environment.agents[1].wins}')
-                self.environment.log.add_log("info", f'Draws: {self.environment.agents[1].draws}')
+                self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'
+                                                   f' won {self.environment.agents[0].wins}')
+                self.environment.game_logger.write(f'Agent [{self.environment.agents[1].name}]'
+                                                   f' won {self.environment.agents[1].wins}')
+                self.environment.game_logger.write(f'Draws: {self.environment.agents[1].draws}')
 
             end = time.time()
             print(f'\n')
+            self.environment.benchmark_logger.write("\nWhole Episode time")
+            self.environment.benchmark_logger.write(end - start)
             print(f'Time elapsed: {end - start}')
             print(f'Agent [{self.environment.agents[0].name}] won {self.environment.agents[0].wins}')
             print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')

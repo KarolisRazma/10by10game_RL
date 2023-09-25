@@ -1,21 +1,21 @@
 import logging
+import datetime
 
 
 class Logger:
-    def __init__(self, filename):
-        logging.basicConfig(filename="logs/log.log", level=logging.INFO,
-                            format="%(message)s", filemode="w")
-        logging.debug("Logger is starting..")
+    def __init__(self, logger_name, filename):
+        # Get the current date and time
+        current_datetime = datetime.datetime.now()
+        date = current_datetime.date()
+        time = current_datetime.strftime("%H:%M:%S")
 
-    @staticmethod
-    def add_log(level, message):
-        if level == "debug":
-            logging.debug(message)
-        if level == "info":
-            logging.info(message)
-        if level == "warning":
-            logging.warning(message)
-        if level == "error":
-            logging.error(message)
-        if level == "critical":
-            logging.critical(message)
+        self.log = logging.getLogger(logger_name)
+        handler = logging.FileHandler(f'logs/{date}_{time}_{filename}')
+        formatter = logging.Formatter("%(message)s")
+
+        self.log.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        self.log.addHandler(handler)
+
+    def write(self, message):
+        self.log.info(message)
