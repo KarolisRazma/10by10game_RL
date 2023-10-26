@@ -1,4 +1,5 @@
 import math
+import time
 
 import src.agents.agent as ag
 import src.agents.improved_agent_learning.path as ph
@@ -46,6 +47,25 @@ class ImprovedAgent(ag.Agent):
         self.behaviour = ["EXPLOIT", "EXPLORE"]
         self.is_improved_exploitation_on = is_improved_exploitation_on
 
+        self.bench1 = []    # Placing Explore
+        self.bench2 = []    # Gets PlacingRelationInfo objects list
+        self.bench3 = []    # Gets TakingRelationInfo objects list
+        self.bench4 = []    # Placing exploit optimization
+        self.bench5 = []    # Taking exploit optimization
+        self.bench6 = []    # Placing exploit optimization method get_states_by_placing_actions
+        self.bench7 = []    # Placing exploit optimization method get_best_placing_relation
+        self.bench8 = []    # Taking exploit optimization method get_states_by_taking_actions
+        self.bench9 = []    # Taking exploit optimization method get_best_taking_relation
+        self.bench10 = []   # After Placing processing
+        self.bench11 = []   # After Taking processing
+        self.bench12 = []   # Initial state processing
+        self.bench13 = []   # All placing exploitation time
+        self.bench14 = []   # Exploit placing sort
+        self.bench15 = []   # Exploit placing filter
+        self.bench16 = []   # All taking exploitation time
+        self.bench17 = []   # Exploit taking sort
+        self.bench18 = []   # Exploit taking filter
+
     def select_placing_action(self, game_board):
         return self.get_placing_action(game_board)
 
@@ -73,10 +93,13 @@ class ImprovedAgent(ag.Agent):
                                     enemy_score=enemy_score,
                                     chips_left=chips_left)
 
+        start_timer = time.time()
         # Update agent's graph with next board state and placing relation
         updated_next_state_info, placing_relation_info = \
             self.graph.create_next_node_and_make_placing_relation(self.current_state_info,
                                                                   next_state_info, placing_action)
+        end_timer = time.time()
+        self.bench10.append(end_timer - start_timer)
 
         # Append placing relation and next state to path
         self.last_episode_path.relation_info_list.append(placing_relation_info)
@@ -102,10 +125,13 @@ class ImprovedAgent(ag.Agent):
                                     enemy_score=enemy_score,
                                     chips_left=chips_left)
 
+        start_timer = time.time()
         # Update agent's graph with next board state and taking relation
         updated_next_state_info, taking_relation_info = \
             self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info,
                                                                  taking_combination, last_placed_chip)
+        end_timer = time.time()
+        self.bench11.append(end_timer - start_timer)
 
         # Append taking relation and next state to path
         self.last_episode_path.relation_info_list.append(taking_relation_info)
@@ -117,12 +143,17 @@ class ImprovedAgent(ag.Agent):
     def get_random_action_for_placing(self, game_board):
         # Loop while action is not selected
         # fixme can cause problems if board is full
+        start_timer = time.time()
         while True:
             random_tile_index = random.randint(0, len(game_board.tiles) - 1)
             if game_board.is_tile_empty(random_tile_index):
                 tile_row = math.floor(random_tile_index / game_board.border_length)
                 tile_col = random_tile_index % game_board.border_length
                 hand_chip_index = random.randint(0, 1)
+
+                end_timer = time.time()
+                self.bench1.append(end_timer - start_timer)
+
                 return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
 
     def reset(self):
@@ -150,14 +181,21 @@ class ImprovedAgent(ag.Agent):
             enemy_score=0,
             chips_left=container_chips_count)
 
+        start_timer = time.time()
         # Add to db
         initial_state_updated = self.graph.add_game_state(initial_state, is_initial_state=True)
+        end_timer = time.time()
+        self.bench12.append(end_timer - start_timer)
+
         self.current_state_info = initial_state_updated
         self.last_episode_path.state_info_list.append(initial_state_updated)
 
     def get_placing_action(self, game_board):
+        start_timer = time.time()
         # Gets PlacingRelationInfo objects list
         relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='placing')
+        end_timer = time.time()
+        self.bench2.append(end_timer - start_timer)
 
         # If 'relations' is empty, then agent explore 100%
         if not relations:
@@ -195,11 +233,19 @@ class ImprovedAgent(ag.Agent):
         return self.get_random_action_for_placing(game_board)
 
     def do_exploit_placing(self, game_board, relations):
+        exploit_start_timer = time.time()
+
+        start_timer = time.time()
         # Sort list by q_value in decending order
         relations.sort(key=lambda x: x.q_value, reverse=True)
+        end_timer = time.time()
+        self.bench14.append(end_timer - start_timer)
 
+        start_timer = time.time()
         # Filter irrelevant relations(the ones, which cannot be executed)
         filtered_relations = self.filter_placing_relations(relations)
+        end_timer = time.time()
+        self.bench15.append(end_timer - start_timer)
 
         # if 'filtered_relations' is empty
         if not filtered_relations:
@@ -210,19 +256,31 @@ class ImprovedAgent(ag.Agent):
 
         # (Can be skipped) Optimization for better exploitation results
         if self.is_improved_exploitation_on:
+            start_timer = time.time()
             next_states_info = self.get_states_by_placing_actions(filtered_relations)
             best_relation = self.get_best_placing_relation(next_states_info, best_relation)
+            end_timer = time.time()
+            self.bench4.append(end_timer - start_timer)
 
-        # Get action for next state
+        exploit_end_timer = time.time()
+        self.bench13.append(exploit_end_timer - exploit_start_timer)
+
         return PlaceChipAction(best_relation.row, best_relation.col, best_relation.chip_value)
 
     # THIS IS ONLY FOR IMPROVED EXPLOITATION
     def get_states_by_placing_actions(self, relations):
-        return [self.graph.find_next_state_by_placing_relation(self.current_state_info, relation)
-                for relation in relations]
+        start_timer = time.time()
+        next_states_info = []
+        for relation in relations:
+            info = self.graph.find_next_state_by_placing_relation(self.current_state_info, relation)
+            next_states_info.append(info)
+        end_timer = time.time()
+        self.bench6.append(end_timer - start_timer)
+        return next_states_info
 
     # THIS IS ONLY FOR IMPROVED EXPLOITATION
     def get_best_placing_relation(self, next_states_info, best_relation):
+        start_timer = time.time()
         get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
 
         # Not the field 'times_visited', but win+lose counter
@@ -240,13 +298,20 @@ class ImprovedAgent(ag.Agent):
         if best_states:
             next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
             best_relation = self.graph.find_placing_relation_info(self.current_state_info, next_state)
+            end_timer = time.time()
+            self.bench7.append(end_timer - start_timer)
             return best_relation
         else:
+            end_timer = time.time()
+            self.bench7.append(end_timer - start_timer)
             return best_relation
 
     def get_taking_action(self, combinations, last_placed_chip):
         # Gets TakingRelationInfo objects list
+        start_timer = time.time()
         relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='taking')
+        end_timer = time.time()
+        self.bench3.append(end_timer - start_timer)
 
         # If 'nodes' is empty, then agent explore 100%
         if not relations:
@@ -280,13 +345,22 @@ class ImprovedAgent(ag.Agent):
         return combinations[random.randint(0, len(combinations) - 1)]
 
     def do_exploit_taking(self, combinations, last_placed_chip, relations):
+        exploit_start_timer = time.time()
+
+        start_timer = time.time()
         # Sort list by q_value in decending order
         relations.sort(key=lambda x: x.q_value, reverse=True)
+        end_timer = time.time()
+        self.bench17.append(end_timer - start_timer)
 
         # Before filtering irrelevant relations, reorganize Chip object into row/col/value list
         last_placed_chip = [last_placed_chip.row, last_placed_chip.col, last_placed_chip.value]
+
+        start_timer = time.time()
         # Filter irrelevant relations(the ones, which cannot be executed)
         filtered_relations = self.filter_taking_relations(relations, combinations, last_placed_chip)
+        end_timer = time.time()
+        self.bench18.append(end_timer - start_timer)
 
         # if 'filtered_relations' is empty
         if not filtered_relations:
@@ -296,22 +370,32 @@ class ImprovedAgent(ag.Agent):
         best_relation = filtered_relations[0]
 
         # (Can be skipped) Optimization for better exploitation results
+
         if self.is_improved_exploitation_on:
+            start_timer = time.time()
             next_states_info = self.get_states_by_taking_actions(filtered_relations)
             best_relation = self.get_best_taking_relation(next_states_info, best_relation, last_placed_chip)
+            end_timer = time.time()
+            self.bench5.append(end_timer - start_timer)
 
-        # Get combination for next state
+        exploit_end_timer = time.time()
+        self.bench16.append(exploit_end_timer - exploit_start_timer)
+
         return best_relation.combination
 
     # THIS IS ONLY FOR IMPROVED EXPLOITATION
     def get_states_by_taking_actions(self, relations):
+        start_timer = time.time()
         next_states_info = []
         for relation in relations:
             info = self.graph.find_next_state_by_taking_relation(self.current_state_info, relation)
             next_states_info.append(info)
+        end_timer = time.time()
+        self.bench8.append(end_timer - start_timer)
         return next_states_info
 
     def get_best_taking_relation(self, next_states_info, best_relation, last_placed_chip):
+        start_timer = time.time()
         get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
 
         # Not the field 'times_visited', but win+lose counter
@@ -330,8 +414,12 @@ class ImprovedAgent(ag.Agent):
             next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
             best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state,
                                                                  last_placed_chip)
+            end_timer = time.time()
+            self.bench9.append(end_timer - start_timer)
             return best_relation
         else:
+            end_timer = time.time()
+            self.bench9.append(end_timer - start_timer)
             return best_relation
 
     def filter_placing_relations(self, relations):

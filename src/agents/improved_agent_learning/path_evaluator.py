@@ -1,8 +1,15 @@
+import time
+
+
 class PathEvaluator:
     # field path stores Path object
     def __init__(self, learning):
         self.path = None
         self.learning = learning
+
+        self.bench1 = []    # Update counters in DB
+        self.bench2 = []    # Calculate Q-Value
+        self.bench3 = []    # Update Q-Value in DB
 
     # argument path is Path object
     def set_path(self, path):
@@ -56,7 +63,10 @@ class PathEvaluator:
                         state_info.lose_counter += 1
 
                 # Update Graph
+                start_timer = time.time()
                 graph.update_node_after_episode(state_info)
+                end_timer = time.time()
+                self.bench1.append(end_timer - start_timer)
 
             # Relations
             if relations_length > 0:
@@ -66,14 +76,20 @@ class PathEvaluator:
                 if relation_info.q_value is None:
                     relation_info.q_value = 0.0
 
+                start_timer = time.time()
                 relation_info.q_value = self.learning.calc_new_q_value(graph=graph, state_info=state_info,
                                                                        relation_info=relation_info,
                                                                        is_final_state=is_first_step,
                                                                        is_game_won=is_game_won,
                                                                        is_game_drawn=is_game_drawn)
+                end_timer = time.time()
+                self.bench2.append(end_timer - start_timer)
 
                 # Update q-value
+                start_timer = time.time()
                 graph.set_q_value(self.path.state_info_list[states_length - 2], state_info, relation_info)
+                end_timer = time.time()
+                self.bench3.append(end_timer - start_timer)
 
                 # First step is over, set flag false
                 if is_first_step:

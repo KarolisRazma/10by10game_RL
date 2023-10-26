@@ -10,7 +10,7 @@ class Logger:
         time = current_datetime.strftime("%H:%M:%S")
 
         self.log = logging.getLogger(logger_name)
-        handler = logging.FileHandler(f'logs/{date}_{time}_{filename}')
+        handler = logging.FileHandler(f'/home/karolisr/PycharmProjects/10by10game_RL/src/logs/{date}_{time}_{filename}')
         formatter = logging.Formatter("%(message)s")
 
         self.log.setLevel(logging.INFO)
