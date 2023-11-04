@@ -1,4 +1,5 @@
 # Components
+import copy
 import time
 
 import src.game_components.board as board
@@ -82,6 +83,7 @@ class Environment:
         self.benchmarks_5 = []  # processing after taking
         self.benchmarks_6 = []  # log start round
         self.benchmarks_7 = []  # get combinations
+        self.file = None
 
     # Append agent to self.agents list
     def set_agent(self, agent):
@@ -298,37 +300,38 @@ class Environment:
         # Agent takes these chips
         # Except the one placed this round
         if combinations:
-            start_timer = time.time()
             # Sets taking_combination to [chip_1, chip_2, ... chip_n]
-            combination = agent.select_taking_action(game_board=self.board,
-                                                     combinations=combinations,
-                                                     last_placed_chip=self.last_placed_chip)
-            end_timer = time.time()
-            self.benchmarks_4.append(end_timer - start_timer)
+            combination, next_state_info = agent.select_taking_action({
+                "game_board": self.board,
+                "combinations": combinations,
+                "last_placed_chip": self.last_placed_chip,
+                "chips_left": len(self.container.chips),
+                "enemy_score": enemy_agent.score,
+                "my_turn": True,
+                "file": self.file
+            }, None, None)
+            enemy_agent.select_taking_action({
+                "game_board": self.board,
+                "combinations": combinations,
+                "last_placed_chip": self.last_placed_chip,
+                "chips_left": len(self.container.chips),
+                "enemy_score": agent.score,
+                "my_turn": False,
+                "file": self.file
+            }, None, None)
 
             # Execute selected taking action
             self.exec_taking_loop(combination, agent, turn)
 
-            start_timer = time.time()
-            # Agents processing state changes after a chip placement (2.4)
-            agent.process_state_changes(changes_type=StateChangeType.TAKING,
-                                        changes_data=StateChangeData(is_my_turn=True,
-                                                                     game_board=self.board,
-                                                                     enemy_score=enemy_agent.score,
-                                                                     container_chips_count=len(self.container.chips),
-                                                                     taking_combination=combination,
-                                                                     last_placed_chip=self.last_placed_chip))
+            # change state
+            agent.current_state_info = next_state_info
+            enemy_next_state_info = copy.deepcopy(next_state_info)
+            enemy_next_state_info.my_turn = False
+            my_score = enemy_next_state_info.enemy_score
+            enemy_score = enemy_next_state_info.my_score
+            enemy_next_state_info.my_score, enemy_next_state_info.enemy_score = my_score, enemy_score
+            enemy_agent.current_state_info = enemy_next_state_info
 
-            enemy_agent.process_state_changes(changes_type=StateChangeType.TAKING,
-                                              changes_data=StateChangeData(is_my_turn=False,
-                                                                           game_board=self.board,
-                                                                           enemy_score=agent.score,
-                                                                           container_chips_count=len(
-                                                                               self.container.chips),
-                                                                           taking_combination=combination,
-                                                                           last_placed_chip=self.last_placed_chip))
-            end_timer = time.time()
-            self.benchmarks_5.append(end_timer - start_timer)
             # Log how changed the game after the action
             self.log_after_taking()
 
@@ -412,30 +415,34 @@ class Environment:
 
             # agent selects placing action (2.2)
             start_timer = time.time()
-            placing_action = agent.select_placing_action(game_board=self.board)
+            placing_action, next_state_info = agent.select_placing_action({
+                "game_board": self.board,
+                "enemy_score": enemy_agent.score,
+                "chips_left": len(self.container.chips),
+                "my_turn": True,
+                "file": self.file
+            })
+            enemy_agent.select_placing_action({
+                "game_board": self.board,
+                "enemy_score": agent.score,
+                "chips_left": len(self.container.chips),
+                "my_turn": False,
+                "file": self.file,
+                "agent_chips": agent.hand_chips
+            })
             end_timer = time.time()
             self.benchmarks_2.append(end_timer - start_timer)
 
             # Execute selected placing action (2.3)
             self.make_placing_action(agent, placing_action)
 
-            start_timer = time.time()
-            # Agents processing state changes after a chip placement (2.4)
-            agent.process_state_changes(changes_type=StateChangeType.PLACING,
-                                        changes_data=StateChangeData(is_my_turn=True,
-                                                                     game_board=self.board,
-                                                                     enemy_score=enemy_agent.score,
-                                                                     container_chips_count=len(self.container.chips),
-                                                                     placing_action=placing_action))
-            enemy_agent.process_state_changes(changes_type=StateChangeType.PLACING,
-                                              changes_data=StateChangeData(is_my_turn=False,
-                                                                           game_board=self.board,
-                                                                           enemy_score=agent.score,
-                                                                           container_chips_count=len(
-                                                                               self.container.chips),
-                                                                           placing_action=placing_action))
-            end_timer = time.time()
-            self.benchmarks_3.append(end_timer - start_timer)
+            agent.current_state_info = next_state_info
+            enemy_next_state_info = copy.deepcopy(next_state_info)
+            enemy_next_state_info.my_turn = False
+            my_score = enemy_next_state_info.enemy_score
+            enemy_score = enemy_next_state_info.my_score
+            enemy_next_state_info.my_score, enemy_next_state_info.enemy_score = my_score, enemy_score
+            enemy_agent.current_state_info = enemy_next_state_info
 
             # Log how the game changed after the action
             self.log_after_placing()

@@ -10,10 +10,10 @@ class RandomWalkerAgent(Agent):
     def __init__(self, name):
         super().__init__(name)
 
-    def select_placing_action(self, game_board):
-        return self.get_action_for_placing(game_board)
+    def select_placing_action(self, game_data):
+        return self.get_action_for_placing(game_data.game_board)
 
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
+    def select_taking_action(self, game_data, combinations, last_placed_chip):
         random_combination_index = random.randint(0, len(combinations) - 1)
         return combinations[random_combination_index]
 

@@ -1,3 +1,4 @@
+import copy
 import math
 import time
 
@@ -9,8 +10,11 @@ import numpy as np
 import random
 
 from src.agents.actions.placing_action import PlaceChipAction
+from src.game_components.color import Color
 from src.utilities.state_changes import StateChangeType, StateChangeData, InitialStateData
 from src.agents.improved_agent_learning.state_info import StateInfo
+
+from src.game_components.chip import Chip
 
 
 class ImprovedAgent(ag.Agent):
@@ -47,30 +51,30 @@ class ImprovedAgent(ag.Agent):
         self.behaviour = ["EXPLOIT", "EXPLORE"]
         self.is_improved_exploitation_on = is_improved_exploitation_on
 
-        self.bench1 = []    # Placing Explore
-        self.bench2 = []    # Gets PlacingRelationInfo objects list
-        self.bench3 = []    # Gets TakingRelationInfo objects list
-        self.bench4 = []    # Placing exploit optimization
-        self.bench5 = []    # Taking exploit optimization
-        self.bench6 = []    # Placing exploit optimization method get_states_by_placing_actions
-        self.bench7 = []    # Placing exploit optimization method get_best_placing_relation
-        self.bench8 = []    # Taking exploit optimization method get_states_by_taking_actions
-        self.bench9 = []    # Taking exploit optimization method get_best_taking_relation
-        self.bench10 = []   # After Placing processing
-        self.bench11 = []   # After Taking processing
-        self.bench12 = []   # Initial state processing
-        self.bench13 = []   # All placing exploitation time
-        self.bench14 = []   # Exploit placing sort
-        self.bench15 = []   # Exploit placing filter
-        self.bench16 = []   # All taking exploitation time
-        self.bench17 = []   # Exploit taking sort
-        self.bench18 = []   # Exploit taking filter
+        self.bench1 = []  # Placing Explore
+        self.bench2 = []  # Gets PlacingRelationInfo objects list
+        self.bench3 = []  # Gets TakingRelationInfo objects list
+        self.bench4 = []  # Placing exploit optimization
+        self.bench5 = []  # Taking exploit optimization
+        self.bench6 = []  # Placing exploit optimization method get_states_by_placing_actions
+        self.bench7 = []  # Placing exploit optimization method get_best_placing_relation
+        self.bench8 = []  # Taking exploit optimization method get_states_by_taking_actions
+        self.bench9 = []  # Taking exploit optimization method get_best_taking_relation
+        self.bench10 = []  # After Placing processing
+        self.bench11 = []  # After Taking processing
+        self.bench12 = []  # Initial state processing
+        self.bench13 = []  # All placing exploitation time
+        self.bench14 = []  # Exploit placing sort
+        self.bench15 = []  # Exploit placing filter
+        self.bench16 = []  # All taking exploitation time
+        self.bench17 = []  # Exploit taking sort
+        self.bench18 = []  # Exploit taking filter
 
-    def select_placing_action(self, game_board):
-        return self.get_placing_action(game_board)
+    def select_placing_action(self, game_data):
+        return self.get_placing_action(game_data)
 
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
-        return self.get_taking_action(combinations, last_placed_chip)
+    def select_taking_action(self, game_data, combinations, last_placed_chip):
+        return self.get_taking_action(game_data)
 
     def process_state_changes(self, changes_type, changes_data):
         if changes_type == StateChangeType.PLACING:
@@ -140,21 +144,85 @@ class ImprovedAgent(ag.Agent):
         # Update current state
         self.current_state_info = updated_next_state_info
 
-    def get_random_action_for_placing(self, game_board):
-        # Loop while action is not selected
-        # fixme can cause problems if board is full
-        start_timer = time.time()
-        while True:
-            random_tile_index = random.randint(0, len(game_board.tiles) - 1)
-            if game_board.is_tile_empty(random_tile_index):
-                tile_row = math.floor(random_tile_index / game_board.border_length)
-                tile_col = random_tile_index % game_board.border_length
-                hand_chip_index = random.randint(0, 1)
+    # def get_random_action_for_placing(self, game_board):
+    #     # Loop while action is not selected
+    #     # fixme can cause problems if board is full
+    #     start_timer = time.time()
+    #     while True:
+    #         random_tile_index = random.randint(0, len(game_board.tiles) - 1)
+    #         if game_board.is_tile_empty(random_tile_index):
+    #             tile_row = math.floor(random_tile_index / game_board.border_length)
+    #             tile_col = random_tile_index % game_board.border_length
+    #             hand_chip_index = random.randint(0, 1)
+    #
+    #             end_timer = time.time()
+    #             self.bench1.append(end_timer - start_timer)
+    #
+    #             return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
 
-                end_timer = time.time()
-                self.bench1.append(end_timer - start_timer)
+    def more_states(self, game_board, game_data):
+        actions = []  # first, clear action list
+        for tile in range(len(game_board.tiles)):
+            if game_board.is_tile_empty(tile):
+                tile_row = math.floor(tile / game_board.border_length)
+                tile_col = tile % game_board.border_length
+                actions.append(PlaceChipAction(tile_row, tile_col, 1))
+                actions.append(PlaceChipAction(tile_row, tile_col, 2))
+                actions.append(PlaceChipAction(tile_row, tile_col, 3))
+        for action in actions:
+            board_values = self.make_next_board_value_after_placing(game_board, action)
+            next_state_info = StateInfo(board_values=board_values,
+                                        my_turn=game_data["my_turn"],
+                                        my_score=self.score,
+                                        enemy_score=game_data["enemy_score"],
+                                        chips_left=game_data["chips_left"])
+            self.graph.create_next_node_and_make_placing_relation(self.current_state_info, next_state_info, action)
 
-                return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
+    def get_random_action_for_placing(self, game_data):
+        game_board = game_data["game_board"]
+        self.more_states(game_board, game_data)
+        actions = []  # first, clear action list
+        next_state_infos = []
+        # loop over all tiles
+
+        if game_data["my_turn"]:
+            for tile in range(len(game_board.tiles)):
+                if game_board.is_tile_empty(tile):
+                    tile_row = math.floor(tile / game_board.border_length)
+                    tile_col = tile % game_board.border_length
+                    actions.append(PlaceChipAction(tile_row, tile_col, self.hand_chips[0].value))
+                    actions.append(PlaceChipAction(tile_row, tile_col, self.hand_chips[1].value))
+        else:
+            for tile in range(len(game_board.tiles)):
+                if game_board.is_tile_empty(tile):
+                    tile_row = math.floor(tile / game_board.border_length)
+                    tile_col = tile % game_board.border_length
+                    actions.append(PlaceChipAction(tile_row, tile_col, game_data["agent_chips"][0].value))
+                    actions.append(PlaceChipAction(tile_row, tile_col, game_data["agent_chips"][1].value))
+        # Next states (to DB)
+        for action in actions:
+            board_values = self.make_next_board_value_after_placing(game_board, action)
+            next_state_info = StateInfo(board_values=board_values,
+                                        my_turn=game_data["my_turn"],
+                                        my_score=self.score,
+                                        enemy_score=game_data["enemy_score"],
+                                        chips_left=game_data["chips_left"])
+            next_state_infos.append(next_state_info)
+            self.graph.create_next_node_and_make_placing_relation(self.current_state_info, next_state_info, action)
+
+        relations = self.graph.find_game_state_next_relations(self.current_state_info)
+
+        if game_data["my_turn"]:
+            game_data["file"].write(f'{len(relations)},')
+
+        index = random.randint(0, len(actions) - 1)
+        return actions[index], next_state_infos[index]
+
+    @staticmethod
+    def make_next_board_value_after_placing(game_board, action):
+        board_copy = copy.deepcopy(game_board)
+        board_copy.add_chip_rowcol(action.row, action.col, Chip(action.value))
+        return board_copy.board_to_chip_values()
 
     def reset(self):
         super().reset()
@@ -190,47 +258,48 @@ class ImprovedAgent(ag.Agent):
         self.current_state_info = initial_state_updated
         self.last_episode_path.state_info_list.append(initial_state_updated)
 
-    def get_placing_action(self, game_board):
-        start_timer = time.time()
+    def get_placing_action(self, game_data):
         # Gets PlacingRelationInfo objects list
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='placing')
-        end_timer = time.time()
-        self.bench2.append(end_timer - start_timer)
 
-        # If 'relations' is empty, then agent explore 100%
-        if not relations:
-            self.explore_rate = float(1)
-            self.exploit_rate = float(0)
-        # Else, change exploration rate accordingly to nodes_length
-        else:
-            relations_length = len(relations)
+        # TODO parodyti relations kieki
 
-            explore_rate = float(1 - self.exploit_growth * relations_length)
-            exploit_rate = float(1 - explore_rate)
-            # If explore rate is negative
-            if explore_rate < 0:
-                explore_rate = float(self.explore_minimum)
-                exploit_rate = float(1 - explore_rate)
 
-            self.explore_rate = explore_rate
-            self.exploit_rate = exploit_rate
+        return self.do_explore_placing(game_data)
 
-        # Getting agent's behaviour for this round
-        current_behaviour = self.get_agent_behaviour()
+        # # If 'relations' is empty, then agent explore 100%
+        # if not relations:
+        #     self.explore_rate = float(1)
+        #     self.exploit_rate = float(0)
+        # # Else, change exploration rate accordingly to nodes_length
+        # else:
+        #     relations_length = len(relations)
+        #
+        #     explore_rate = float(1 - self.exploit_growth * relations_length)
+        #     exploit_rate = float(1 - explore_rate)
+        #     # If explore rate is negative
+        #     if explore_rate < 0:
+        #         explore_rate = float(self.explore_minimum)
+        #         exploit_rate = float(1 - explore_rate)
+        #
+        #     self.explore_rate = explore_rate
+        #     self.exploit_rate = exploit_rate
+        #
+        # # Getting agent's behaviour for this round
+        # current_behaviour = self.get_agent_behaviour()
 
-        # TODO change to int EXPLORE/EXPLOIT 0/1
-        if current_behaviour == "EXPLORE":
-            return self.do_explore_placing(game_board)
-        elif current_behaviour == "EXPLOIT":
-            return self.do_exploit_placing(game_board, relations)
+        # # TODO change to int EXPLORE/EXPLOIT 0/1
+        # if current_behaviour == "EXPLORE":
+        #
+        # elif current_behaviour == "EXPLOIT":
+        #     return self.do_exploit_placing(game_data, relations)
 
     def get_agent_behaviour(self):
         # Do random choice(not so random, because according to probabilities) for behaviour
         return np.random.choice(self.behaviour, 1, p=[self.exploit_rate, self.explore_rate])
 
-    def do_explore_placing(self, game_board):
+    def do_explore_placing(self, game_data):
         # Choose one action randomly
-        return self.get_random_action_for_placing(game_board)
+        return self.get_random_action_for_placing(game_data)
 
     def do_exploit_placing(self, game_board, relations):
         exploit_start_timer = time.time()
@@ -306,43 +375,101 @@ class ImprovedAgent(ag.Agent):
             self.bench7.append(end_timer - start_timer)
             return best_relation
 
-    def get_taking_action(self, combinations, last_placed_chip):
+    def get_taking_action(self, game_data):
         # Gets TakingRelationInfo objects list
-        start_timer = time.time()
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='taking')
-        end_timer = time.time()
-        self.bench3.append(end_timer - start_timer)
+        return self.do_explore_taking(game_data)
 
         # If 'nodes' is empty, then agent explore 100%
-        if not relations:
-            self.explore_rate = float(1)
-            self.exploit_rate = float(0)
-        # Else, change exploration rate accordingly to nodes_length
-        else:
-            relations_length = len(relations)
+        # if not relations:
+        #     self.explore_rate = float(1)
+        #     self.exploit_rate = float(0)
+        # # Else, change exploration rate accordingly to nodes_length
+        # else:
+        #     relations_length = len(relations)
+        #
+        #     explore_rate = float(1 - self.exploit_growth * relations_length)
+        #     exploit_rate = float(1 - explore_rate)
+        #     # If explore rate is negative
+        #     if explore_rate < 0:
+        #         explore_rate = float(self.explore_minimum)
+        #         exploit_rate = float(1 - explore_rate)
+        #
+        #     self.explore_rate = explore_rate
+        #     self.exploit_rate = exploit_rate
 
-            explore_rate = float(1 - self.exploit_growth * relations_length)
-            exploit_rate = float(1 - explore_rate)
-            # If explore rate is negative
-            if explore_rate < 0:
-                explore_rate = float(self.explore_minimum)
-                exploit_rate = float(1 - explore_rate)
+        # # Getting agent's behaviour for this round
+        # current_behaviour = self.get_agent_behaviour()
+        #
+        # if current_behaviour == "EXPLORE":
 
-            self.explore_rate = explore_rate
-            self.exploit_rate = exploit_rate
+        # elif current_behaviour == "EXPLOIT":
+        #     return self.do_exploit_taking(combinations, last_placed_chip, relations)
 
-        # Getting agent's behaviour for this round
-        current_behaviour = self.get_agent_behaviour()
+    def do_explore_taking(self, game_data):
+        next_state_infos = []
+        for combination in game_data["combinations"]:
+            board_values, score, chips_left = self.make_next_board_value_after_taking(game_data["game_board"],
+                                                                                      combination,
+                                                                                      game_data["last_placed_chip"],
+                                                                                      game_data["chips_left"],
+                                                                                      game_data["my_turn"],
+                                                                                      game_data["enemy_score"])
+            if game_data["my_turn"]:
+                next_state_info = StateInfo(board_values=board_values,
+                                            my_turn=game_data["my_turn"],
+                                            my_score=score,
+                                            enemy_score=game_data["enemy_score"],
+                                            chips_left=chips_left)
+            else:
+                next_state_info = StateInfo(board_values=board_values,
+                                            my_turn=game_data["my_turn"],
+                                            my_score=self.score,
+                                            enemy_score=score,
+                                            chips_left=chips_left)
+            next_state_infos.append(next_state_info)
+            last_placed_chip = [game_data["last_placed_chip"].row, game_data["last_placed_chip"].col,
+                                game_data["last_placed_chip"].value]
 
-        if current_behaviour == "EXPLORE":
-            return self.do_explore_taking(combinations)
-        elif current_behaviour == "EXPLOIT":
-            return self.do_exploit_taking(combinations, last_placed_chip, relations)
+            self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info, combination,
+                                                                 last_placed_chip)
 
-    @staticmethod
-    def do_explore_taking(combinations):
         # Choose one combination randomly
-        return combinations[random.randint(0, len(combinations) - 1)]
+        relations = self.graph.find_game_state_next_relations(self.current_state_info)
+
+        if game_data["my_turn"]:
+            game_data["file"].write(f'{len(relations)},')
+
+        index = random.randint(0, len(game_data["combinations"]) - 1)
+        return game_data["combinations"][index], next_state_infos[index]
+
+    def make_next_board_value_after_taking(self, game_board, combination, last_placed_chip, chips_left, my_turn,
+                                           enemy_score):
+        board_copy = copy.deepcopy(game_board)
+
+        if my_turn:
+            score_copy = self.score
+        else:
+            score_copy = enemy_score
+
+        chips_left_copy = chips_left
+        for chip in combination:
+            if chip.row == last_placed_chip.row and chip.col == last_placed_chip.col:
+                continue
+            tile = board_copy.get_tile_at_index(chip.row * board_copy.border_length + chip.col)
+            if tile.color == Color.RED:
+                board_copy.remove_chip(chip.row * board_copy.border_length + chip.col)
+                chips_left_copy += 1
+                continue
+            if tile.color == Color.BLUE:
+                board_copy.remove_chip(chip.row * board_copy.border_length + chip.col)
+                if chips_left_copy > 0:
+                    chips_left_copy -= 1
+                score_copy += 2
+                continue
+            if tile.color == Color.WHITE:
+                board_copy.remove_chip(chip.row * board_copy.border_length + chip.col)
+                score_copy += 1
+        return board_copy.board_to_chip_values(), score_copy, chips_left_copy
 
     def do_exploit_taking(self, combinations, last_placed_chip, relations):
         exploit_start_timer = time.time()

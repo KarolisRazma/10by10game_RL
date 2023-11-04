@@ -442,11 +442,11 @@ class Graph:
         rel_properties = record["r"]._properties
         return self.make_taking_relation_info_from_record(rel_properties)
 
-    def find_game_state_next_relations(self, state_info, rel_type):
-        if rel_type == 'placing':
-            relation_name = "NEXT_PLACING"
-        elif rel_type == 'taking':
-            relation_name = "NEXT_TAKING"
+    def find_game_state_next_relations(self, state_info):
+        # if rel_type == 'placing':
+        #     relation_name = "NEXT_PLACING"
+        # elif rel_type == 'taking':
+        #     relation_name = "NEXT_TAKING"
         query = \
             f"""
             MATCH (:GameState {{
@@ -455,7 +455,7 @@ class Graph:
             my_score: $c_my_score,
             enemy_score: $c_enemy_score,
             chips_left: $c_chips_left}})
-            -[r:{relation_name}]->(:GameState)
+            -[r]->(:GameState)
             RETURN r   
             """
         start_timer = time.time()
@@ -466,14 +466,16 @@ class Graph:
         self.bench12.append(end_timer - start_timer)
 
         records = list(result)
-        updated_records = []
-        for record in records:
-            rel_properties = record["r"]._properties
-            if rel_type == 'placing':
-                updated_records.append(self.make_placing_relation_info_from_record(rel_properties))
-            elif rel_type == "taking":
-                updated_records.append(self.make_taking_relation_info_from_record(rel_properties))
-        return updated_records
+        return records
+
+        # updated_records = []
+        # for record in records:
+        #     rel_properties = record["r"]._properties
+        #     if rel_type == 'placing':
+        #         updated_records.append(self.make_placing_relation_info_from_record(rel_properties))
+        #     elif rel_type == "taking":
+        #         updated_records.append(self.make_taking_relation_info_from_record(rel_properties))
+        # return updated_records
 
     def find_next_state_by_placing_relation(self, current_state_info, relation_info):
         start_timer = time.time()
@@ -538,26 +540,26 @@ class Graph:
         record = (result.single(strict=True)).data()['n']
         return self.make_state_info_from_record(record)
 
-    def find_max_next_state_q_value(self, current_state_info):
-        root_start_timer = time.time()
-        placing_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='placing')
-        end_timer = time.time()
-        self.bench16.append(end_timer - root_start_timer)
-
-        start_timer = time.time()
-        taking_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='taking')
-        end_timer = time.time()
-        self.bench17.append(end_timer - start_timer)
-
-        start_timer = time.time()
-        relations_info = placing_relations_info + taking_relations_info
-        result = (max(relations_info, key=lambda x: x.q_value)).q_value
-        end_timer = time.time()
-        self.bench18.append(end_timer - start_timer)
-
-        root_end_timer = time.time()
-        self.bench15.append(root_end_timer - root_start_timer)
-        return result
+    # def find_max_next_state_q_value(self, current_state_info):
+    #     root_start_timer = time.time()
+    #     placing_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='placing')
+    #     end_timer = time.time()
+    #     self.bench16.append(end_timer - root_start_timer)
+    #
+    #     start_timer = time.time()
+    #     taking_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='taking')
+    #     end_timer = time.time()
+    #     self.bench17.append(end_timer - start_timer)
+    #
+    #     start_timer = time.time()
+    #     relations_info = placing_relations_info + taking_relations_info
+    #     result = (max(relations_info, key=lambda x: x.q_value)).q_value
+    #     end_timer = time.time()
+    #     self.bench18.append(end_timer - start_timer)
+    #
+    #     root_end_timer = time.time()
+    #     self.bench15.append(root_end_timer - root_start_timer)
+    #     return result
 
     def make_state_info_from_record(self, node_properties):
         start_timer = time.time()

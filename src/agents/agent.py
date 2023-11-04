@@ -43,9 +43,9 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def select_placing_action(self, game_board):
+    def select_placing_action(self, game_data):
         pass
 
     @abstractmethod
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
+    def select_taking_action(self, game_data, combinations, last_placed_chip):
         pass

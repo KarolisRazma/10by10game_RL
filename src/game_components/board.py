@@ -63,6 +63,7 @@ class Board:
         if index < self.board_size:
             self.chips[index] = cp.Chip(0)
 
+    # fixme DO NOT USE THIS
     def add_chip(self, index, chip):
         if index < self.board_size:
             self.chips[index] = chip
