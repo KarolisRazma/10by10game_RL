@@ -1,5 +1,6 @@
 import math
 import time
+from enum import Enum
 
 import src.agents.agent as ag
 import src.agents.improved_agent_learning.path as ph
@@ -13,8 +14,12 @@ from src.utilities.state_changes import StateChangeType, StateChangeData, Initia
 from src.agents.improved_agent_learning.state_info import StateInfo
 
 
-class ImprovedAgent(ag.Agent):
+class Behaviour(Enum):
+    EXPLORE = 1
+    EXPLOIT = 2
 
+
+class ImprovedAgent(ag.Agent):
     # @param nickname               --> agent's id
     # @param graph                  --> neoj4 graph
     # @param learning_algorithm     --> class RLearning object
@@ -44,27 +49,27 @@ class ImprovedAgent(ag.Agent):
         self.exploit_growth = exploit_growth
 
         # List for agent behaviour selection
-        self.behaviour = ["EXPLOIT", "EXPLORE"]
+        self.behaviour = [Behaviour.EXPLOIT, Behaviour.EXPLORE]
         self.is_improved_exploitation_on = is_improved_exploitation_on
 
-        self.bench1 = []    # Placing Explore
-        self.bench2 = []    # Gets PlacingRelationInfo objects list
-        self.bench3 = []    # Gets TakingRelationInfo objects list
-        self.bench4 = []    # Placing exploit optimization
-        self.bench5 = []    # Taking exploit optimization
-        self.bench6 = []    # Placing exploit optimization method get_states_by_placing_actions
-        self.bench7 = []    # Placing exploit optimization method get_best_placing_relation
-        self.bench8 = []    # Taking exploit optimization method get_states_by_taking_actions
-        self.bench9 = []    # Taking exploit optimization method get_best_taking_relation
-        self.bench10 = []   # After Placing processing
-        self.bench11 = []   # After Taking processing
-        self.bench12 = []   # Initial state processing
-        self.bench13 = []   # All placing exploitation time
-        self.bench14 = []   # Exploit placing sort
-        self.bench15 = []   # Exploit placing filter
-        self.bench16 = []   # All taking exploitation time
-        self.bench17 = []   # Exploit taking sort
-        self.bench18 = []   # Exploit taking filter
+        self.bench1 = []  # Placing Explore
+        self.bench2 = []  # Gets PlacingRelationInfo objects list
+        self.bench3 = []  # Gets TakingRelationInfo objects list
+        self.bench4 = []  # Placing exploit optimization
+        self.bench5 = []  # Taking exploit optimization
+        self.bench6 = []  # Placing exploit optimization method get_states_by_placing_actions
+        self.bench7 = []  # Placing exploit optimization method get_best_placing_relation
+        self.bench8 = []  # Taking exploit optimization method get_states_by_taking_actions
+        self.bench9 = []  # Taking exploit optimization method get_best_taking_relation
+        self.bench10 = []  # After Placing processing
+        self.bench11 = []  # After Taking processing
+        self.bench12 = []  # Initial state processing
+        self.bench13 = []  # All placing exploitation time
+        self.bench14 = []  # Exploit placing sort
+        self.bench15 = []  # Exploit placing filter
+        self.bench16 = []  # All taking exploitation time
+        self.bench17 = []  # Exploit taking sort
+        self.bench18 = []  # Exploit taking filter
 
     def select_placing_action(self, game_board):
         return self.get_placing_action(game_board)
@@ -218,10 +223,9 @@ class ImprovedAgent(ag.Agent):
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
 
-        # TODO change to int EXPLORE/EXPLOIT 0/1
-        if current_behaviour == "EXPLORE":
+        if current_behaviour == Behaviour.EXPLORE:
             return self.do_explore_placing(game_board)
-        elif current_behaviour == "EXPLOIT":
+        elif current_behaviour == Behaviour.EXPLOIT:
             return self.do_exploit_placing(game_board, relations)
 
     def get_agent_behaviour(self):
@@ -334,9 +338,9 @@ class ImprovedAgent(ag.Agent):
         # Getting agent's behaviour for this round
         current_behaviour = self.get_agent_behaviour()
 
-        if current_behaviour == "EXPLORE":
+        if current_behaviour == Behaviour.EXPLORE:
             return self.do_explore_taking(combinations)
-        elif current_behaviour == "EXPLOIT":
+        elif current_behaviour == Behaviour.EXPLOIT:
             return self.do_exploit_taking(combinations, last_placed_chip, relations)
 
     @staticmethod

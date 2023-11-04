@@ -15,7 +15,7 @@ import src.utilities.constants5x5 as c5x5
 import src.utilities.gi_constants as GI_CONSTANTS
 
 # Agents
-from src.agents.brute_force_agent import RandomWalkerAgent
+from src.agents.random_walker_agent import RandomWalkerAgent
 from src.agents.improved_agent import ImprovedAgent
 
 # Misc
