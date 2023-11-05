@@ -32,8 +32,7 @@ import time
 
 
 class Graph:
-    def __init__(self, driver, session):
-        self.driver = driver
+    def __init__(self, session):
         self.session = session
 
         self.bench1 = []    # Add game state

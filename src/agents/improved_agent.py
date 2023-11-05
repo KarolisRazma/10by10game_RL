@@ -24,13 +24,15 @@ class ImprovedAgent(ag.Agent):
     # @param graph                  --> neoj4 graph
     # @param learning_algorithm     --> class RLearning object
 
-    def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum,
+    def __init__(self, name, graphs, learning_algorithm, exploit_growth, explore_minimum,
                  is_improved_exploitation_on=False):
         # Init Agent superclass
         super().__init__(name)
 
         # Graph stored in Neo4j
-        self.graph = graph
+        self.graphs = graphs
+        # Initialized based on first turn of the game
+        self.graph = None
 
         # Path evaluation field
         self.path_evaluator = pe.PathEvaluator(learning_algorithm)
@@ -99,6 +101,7 @@ class ImprovedAgent(ag.Agent):
                                     chips_left=chips_left)
 
         start_timer = time.time()
+
         # Update agent's graph with next board state and placing relation
         updated_next_state_info, placing_relation_info = \
             self.graph.create_next_node_and_make_placing_relation(self.current_state_info,
@@ -176,6 +179,9 @@ class ImprovedAgent(ag.Agent):
         # There is some "maneuver" - if is_starting is True, then it means on Initial State it should be set on False.
         # This is done for correct moves structure (True -> False -> True ...)
         is_starting = False if initial_data.is_starting else True
+
+        # graphs[0] is graphA \ graphs[1] is graphB
+        self.graph = self.graphs[0] if is_starting else self.graphs[1]
 
         container_chips_count = initial_data.container_chips_count
 

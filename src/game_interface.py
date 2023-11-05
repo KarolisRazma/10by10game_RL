@@ -32,11 +32,18 @@ driver.verify_connectivity()
 
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
-session_improved_agent_1 = driver.session(database="agent1-20231021")
-graph_improved_agent_1 = Graph(driver, session_improved_agent_1)
+session_improved_agent_1A = driver.session(database="agent1-20231104-a")
+graph_improved_agent_1A = Graph(session_improved_agent_1A)
+session_improved_agent_1B = driver.session(database="agent1-20231104-b")
+graph_improved_agent_1B = Graph(session_improved_agent_1B)
 
-session_improved_agent_2 = driver.session(database="agent2-20231021")
-graph_improved_agent_2 = Graph(driver, session_improved_agent_2)
+session_improved_agent_2A = driver.session(database="agent2-20231104-a")
+graph_improved_agent_2A = Graph(session_improved_agent_2A)
+session_improved_agent_2B = driver.session(database="agent2-20231104-b")
+graph_improved_agent_2B = Graph(session_improved_agent_2B)
+
+agent1_graphs = [graph_improved_agent_1A, graph_improved_agent_1B]
+agent2_graphs = [graph_improved_agent_2A, graph_improved_agent_2B]
 
 
 class GameInterface:
@@ -57,7 +64,7 @@ class GameInterface:
         self.random_walker_agent_2 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_2)
 
         self.improved_agent_1 = ImprovedAgent(name=GI_CONSTANTS.IMPROVED_1,
-                                              graph=graph_improved_agent_1,
+                                              graphs=agent1_graphs,
                                               learning_algorithm=RLearning(discount_rate=0.9, learning_rate=0.9),
                                               exploit_growth=0.06,
                                               explore_minimum=0.10,
@@ -65,7 +72,7 @@ class GameInterface:
                                               )
 
         self.improved_agent_2 = ImprovedAgent(name=GI_CONSTANTS.IMPROVED_2,
-                                              graph=graph_improved_agent_2,
+                                              graphs=agent2_graphs,
                                               learning_algorithm=RLearning(discount_rate=0.9, learning_rate=0.9),
                                               exploit_growth=0.06,
                                               explore_minimum=0.10,
@@ -265,7 +272,7 @@ class GameInterface:
         current_datetime = datetime.datetime.now()
         timestamp = current_datetime.strftime("%H:%M:%S")
 
-        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/20231021/benchmarks/'
+        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231104/benchmarks/'
         playing_file = f'{path}{timestamp}_playing_{benchmarking_counter}.txt'
         evaluation_file = f'{path}{timestamp}_evaluation_{benchmarking_counter}.txt'
 
@@ -408,60 +415,12 @@ class GameInterface:
             setattr(self.improved_agent_1, f'bench{i}', [])
             setattr(self.improved_agent_2, f'bench{i}', [])
         for i in range(1, 22):
-            setattr(self.improved_agent_1.graph, f'bench{i}', [])
-            setattr(self.improved_agent_2.graph, f'bench{i}', [])
+            setattr(self.improved_agent_1.graphs[0], f'bench{i}', [])
+            setattr(self.improved_agent_1.graphs[1], f'bench{i}', [])
+            setattr(self.improved_agent_2.graphs[0], f'bench{i}', [])
+            setattr(self.improved_agent_2.graphs[1], f'bench{i}', [])
         for i in range(1, 4):
             setattr(self.improved_agent_1.path_evaluator, f'bench{i}', [])
             setattr(self.improved_agent_2.path_evaluator, f'bench{i}', [])
         self.improved_agent_1.path_evaluator.learning.bench1 = []
         self.improved_agent_2.path_evaluator.learning.bench1 = []
-
-    def custom_test(self):
-        self.environment.clear_agents()
-        self.environment.set_agent(self.improved_agent_1)
-        self.environment.set_agent(self.improved_agent_2)
-        episodes = 5000
-        benchmarks_playing = []
-        benchmarks_evaluation = []
-
-        start = time.time()
-        for i in range(episodes):
-            # Play episode
-            playing_timer_start = time.time()
-            self.environment.start_episode()
-            playing_timer_end = time.time()
-            benchmarks_playing.append(playing_timer_end - playing_timer_start)
-
-            evaluation_timer_start = time.time()
-            # Evaluate ImprovedAgent path
-            if isinstance(self.environment.agents[0], ImprovedAgent):
-                agent = self.environment.agents[0]
-                agent.eval_path_after_episode()
-
-            # Evaluate ImprovedAgent path
-            if isinstance(self.environment.agents[1], ImprovedAgent):
-                agent = self.environment.agents[1]
-                agent.eval_path_after_episode()
-            evaluation_timer_end = time.time()
-            benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
-
-            # Log wins/loses/draws
-            self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'
-                                               f' won {self.environment.agents[0].wins}')
-            self.environment.game_logger.write(f'Agent [{self.environment.agents[1].name}]'
-                                               f' won {self.environment.agents[1].wins}')
-            self.environment.game_logger.write(f'Draws: {self.environment.agents[1].draws}')
-
-        end = time.time()
-
-        print(f'whole time average {(end - start) / episodes}')
-        print(f'playing episode average {statistics.mean(benchmarks_playing)}')
-        print(f'evaluating episode average {statistics.mean(benchmarks_evaluation)}')
-        print(f'\n')
-
-        print(f'Time elapsed: {end - start}')
-        print(f'Agent [{self.environment.agents[0].name}] won {self.environment.agents[0].wins}')
-        print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')
-        print(f'Draws: {self.environment.agents[1].draws}')
-
-        self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, 1)
