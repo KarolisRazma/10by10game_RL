@@ -5,3 +5,4 @@ class PlacingRelationInfo:
         self.chip_value = chip_value
 
         self.q_value = None
+        self.local_reward = 0

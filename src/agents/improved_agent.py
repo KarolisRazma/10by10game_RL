@@ -138,6 +138,12 @@ class ImprovedAgent(ag.Agent):
         end_timer = time.time()
         self.bench11.append(end_timer - start_timer)
 
+        # Local Reward (assign reward to current relation(taking) and previous(placing, which lead to this reward))
+        reward = 10 if my_turn else -10
+        taking_relation_info.local_reward = reward
+        self.last_episode_path.relation_info_list[len(self.last_episode_path.relation_info_list) - 1]\
+            .local_reward = reward
+
         # Append taking relation and next state to path
         self.last_episode_path.relation_info_list.append(taking_relation_info)
         self.last_episode_path.state_info_list.append(updated_next_state_info)

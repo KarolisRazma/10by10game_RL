@@ -8,3 +8,4 @@ class TakingRelationInfo:
         self.last_placed_chip = last_placed_chip
 
         self.q_value = None
+        self.local_reward = 0
