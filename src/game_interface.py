@@ -32,7 +32,7 @@ driver.verify_connectivity()
 
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
-session_improved_agent_1 = driver.session(database="agent1-20231021")
+session_improved_agent_1 = driver.session(database="simple-rules")
 graph_improved_agent_1 = Graph(driver, session_improved_agent_1)
 
 session_improved_agent_2 = driver.session(database="agent2-20231021")
@@ -190,7 +190,7 @@ class GameInterface:
 
                 if i != 0 and i % 100 == 0:
                     print(f'Reached {do_benchmarking_counter}')
-                    self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+                    # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
                     do_benchmarking_counter += 1
                     benchmarks_playing = []
                     benchmarks_evaluation = []
@@ -233,7 +233,7 @@ class GameInterface:
             print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')
             print(f'Draws: {self.environment.agents[1].draws}')
 
-            self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+            # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
 
     def process_graph_deletion_option(self):
         while True:
@@ -265,7 +265,7 @@ class GameInterface:
         current_datetime = datetime.datetime.now()
         timestamp = current_datetime.strftime("%H:%M:%S")
 
-        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/20231021/benchmarks/'
+        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231108/benchmarks/'
         playing_file = f'{path}{timestamp}_playing_{benchmarking_counter}.txt'
         evaluation_file = f'{path}{timestamp}_evaluation_{benchmarking_counter}.txt'
 
@@ -415,53 +415,3 @@ class GameInterface:
             setattr(self.improved_agent_2.path_evaluator, f'bench{i}', [])
         self.improved_agent_1.path_evaluator.learning.bench1 = []
         self.improved_agent_2.path_evaluator.learning.bench1 = []
-
-    def custom_test(self):
-        self.environment.clear_agents()
-        self.environment.set_agent(self.improved_agent_1)
-        self.environment.set_agent(self.improved_agent_2)
-        episodes = 5000
-        benchmarks_playing = []
-        benchmarks_evaluation = []
-
-        start = time.time()
-        for i in range(episodes):
-            # Play episode
-            playing_timer_start = time.time()
-            self.environment.start_episode()
-            playing_timer_end = time.time()
-            benchmarks_playing.append(playing_timer_end - playing_timer_start)
-
-            evaluation_timer_start = time.time()
-            # Evaluate ImprovedAgent path
-            if isinstance(self.environment.agents[0], ImprovedAgent):
-                agent = self.environment.agents[0]
-                agent.eval_path_after_episode()
-
-            # Evaluate ImprovedAgent path
-            if isinstance(self.environment.agents[1], ImprovedAgent):
-                agent = self.environment.agents[1]
-                agent.eval_path_after_episode()
-            evaluation_timer_end = time.time()
-            benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
-
-            # Log wins/loses/draws
-            self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'
-                                               f' won {self.environment.agents[0].wins}')
-            self.environment.game_logger.write(f'Agent [{self.environment.agents[1].name}]'
-                                               f' won {self.environment.agents[1].wins}')
-            self.environment.game_logger.write(f'Draws: {self.environment.agents[1].draws}')
-
-        end = time.time()
-
-        print(f'whole time average {(end - start) / episodes}')
-        print(f'playing episode average {statistics.mean(benchmarks_playing)}')
-        print(f'evaluating episode average {statistics.mean(benchmarks_evaluation)}')
-        print(f'\n')
-
-        print(f'Time elapsed: {end - start}')
-        print(f'Agent [{self.environment.agents[0].name}] won {self.environment.agents[0].wins}')
-        print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')
-        print(f'Draws: {self.environment.agents[1].draws}')
-
-        self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, 1)
