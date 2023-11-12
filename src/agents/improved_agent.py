@@ -180,8 +180,13 @@ class ImprovedAgent(ag.Agent):
         # This is done for correct moves structure (True -> False -> True ...)
         is_starting = False if initial_data.is_starting else True
 
-        # graphs[0] is graphA \ graphs[1] is graphB
-        self.graph = self.graphs[0] if is_starting else self.graphs[1]
+        # Logic for graph splitting (4 index in board_values is center tile)
+        if board_values[4] == 1:
+            self.graph = self.graphs[0]
+        elif board_values[4] == 2:
+            self.graph = self.graphs[0] if is_starting else self.graphs[1]
+        elif board_values[4] == 3:
+            self.graph = self.graphs[1]
 
         container_chips_count = initial_data.container_chips_count
 
