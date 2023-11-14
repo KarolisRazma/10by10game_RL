@@ -32,9 +32,9 @@ driver.verify_connectivity()
 
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
-session_improved_agent_1A = driver.session(database="agent1-20231104-a")
+session_improved_agent_1A = driver.session(database="agent1-20231113-a")
 graph_improved_agent_1A = Graph(session_improved_agent_1A)
-session_improved_agent_1B = driver.session(database="agent1-20231104-b")
+session_improved_agent_1B = driver.session(database="agent1-20231113-b")
 graph_improved_agent_1B = Graph(session_improved_agent_1B)
 
 session_improved_agent_2A = driver.session(database="agent2-20231104-a")
@@ -272,7 +272,7 @@ class GameInterface:
         current_datetime = datetime.datetime.now()
         timestamp = current_datetime.strftime("%H:%M:%S")
 
-        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231104/benchmarks/'
+        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231113/benchmarks/'
         playing_file = f'{path}{timestamp}_playing_{benchmarking_counter}.txt'
         evaluation_file = f'{path}{timestamp}_evaluation_{benchmarking_counter}.txt'
 
@@ -374,15 +374,27 @@ class GameInterface:
         # bench20   # Make placing relation info from record
         # bench21   # Make taking relation info from record
 
-        graph_agent1_bench_files = [f'{path}{timestamp}_graph_agent1_bench{bench_num}_{benchmarking_counter}.txt'
-                                    for bench_num in range(1, 22)]
-        graph_agent2_bench_files = [f'{path}{timestamp}_graph_agent2_bench{bench_num}_{benchmarking_counter}.txt'
-                                    for bench_num in range(1, 22)]
+        graph_a_agent1_bench_files = [f'{path}{timestamp}_graphA_agent1_bench{bench_num}_{benchmarking_counter}.txt'
+                                      for bench_num in range(1, 22)]
+        graph_b_agent1_bench_files = [f'{path}{timestamp}_graphB_agent1_bench{bench_num}_{benchmarking_counter}.txt'
+                                      for bench_num in range(1, 22)]
+        graph_a_agent2_bench_files = [f'{path}{timestamp}_graphA_agent2_bench{bench_num}_{benchmarking_counter}.txt'
+                                      for bench_num in range(1, 22)]
+        graph_b_agent2_bench_files = [f'{path}{timestamp}_graphB_agent2_bench{bench_num}_{benchmarking_counter}.txt'
+                                      for bench_num in range(1, 22)]
 
-        graph_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graph, f'bench{bench_num}')) for bench_num
-                                     in range(1, 22)]
-        graph_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graph, f'bench{bench_num}')) for bench_num
-                                     in range(1, 22)]
+        graph_a_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graphs[0], f'bench{bench_num}')) for
+                                       bench_num
+                                       in range(1, 22)]
+        graph_b_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graphs[1], f'bench{bench_num}')) for
+                                       bench_num
+                                       in range(1, 22)]
+        graph_a_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[0], f'bench{bench_num}')) for
+                                       bench_num
+                                       in range(1, 22)]
+        graph_b_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[1], f'bench{bench_num}')) for
+                                       bench_num
+                                       in range(1, 22)]
 
         np.savetxt(playing_file, playing_array, delimiter=',', fmt="%.6f")
         np.savetxt(evaluation_file, evaluation_array, delimiter=',', fmt="%.6f")
@@ -399,9 +411,11 @@ class GameInterface:
             np.savetxt(agent1_bench_files[i], agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
             np.savetxt(agent2_bench_files[i], agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
 
-        for i in range(len(graph_agent1_bench_files)):
-            np.savetxt(graph_agent1_bench_files[i], graph_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
-            np.savetxt(graph_agent2_bench_files[i], graph_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
+        for i in range(len(graph_a_agent1_bench_files)):
+            np.savetxt(graph_a_agent1_bench_files[i], graph_a_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
+            np.savetxt(graph_b_agent1_bench_files[i], graph_b_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
+            np.savetxt(graph_a_agent2_bench_files[i], graph_a_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
+            np.savetxt(graph_b_agent2_bench_files[i], graph_b_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
 
         np.savetxt(learning_bench1_file, learning_bench1_array, delimiter=',', fmt="%.6f")
         np.savetxt(evaluator_bench1_file, evaluator_bench1_array, delimiter=',', fmt="%.6f")
