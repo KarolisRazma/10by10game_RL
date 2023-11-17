@@ -32,17 +32,19 @@ driver.verify_connectivity()
 
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
-session_improved_agent_1A = driver.session(database="agent1-20231111-a")
+session_improved_agent_1A = driver.session(database="agent1-20231114-a")
 graph_improved_agent_1A = Graph(session_improved_agent_1A)
-session_improved_agent_1B = driver.session(database="agent1-20231111-b")
+session_improved_agent_1B = driver.session(database="agent1-20231114-b")
 graph_improved_agent_1B = Graph(session_improved_agent_1B)
+session_improved_agent_1C = driver.session(database="agent1-20231114-c")
+graph_improved_agent_1C = Graph(session_improved_agent_1C)
 
 session_improved_agent_2A = driver.session(database="agent2-20231111-a")
 graph_improved_agent_2A = Graph(session_improved_agent_2A)
 session_improved_agent_2B = driver.session(database="agent2-20231111-b")
 graph_improved_agent_2B = Graph(session_improved_agent_2B)
 
-agent1_graphs = [graph_improved_agent_1A, graph_improved_agent_1B]
+agent1_graphs = [graph_improved_agent_1A, graph_improved_agent_1B, graph_improved_agent_1C]
 agent2_graphs = [graph_improved_agent_2A, graph_improved_agent_2B]
 
 
@@ -272,7 +274,7 @@ class GameInterface:
         current_datetime = datetime.datetime.now()
         timestamp = current_datetime.strftime("%H:%M:%S")
 
-        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231111/benchmarks/'
+        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231114/benchmarks/'
         playing_file = f'{path}{timestamp}_playing_{benchmarking_counter}.txt'
         evaluation_file = f'{path}{timestamp}_evaluation_{benchmarking_counter}.txt'
 
@@ -378,10 +380,12 @@ class GameInterface:
                                       for bench_num in range(1, 22)]
         graph_b_agent1_bench_files = [f'{path}{timestamp}_graphB_agent1_bench{bench_num}_{benchmarking_counter}.txt'
                                       for bench_num in range(1, 22)]
-        graph_a_agent2_bench_files = [f'{path}{timestamp}_graphA_agent2_bench{bench_num}_{benchmarking_counter}.txt'
+        graph_c_agent1_bench_files = [f'{path}{timestamp}_graphC_agent1_bench{bench_num}_{benchmarking_counter}.txt'
                                       for bench_num in range(1, 22)]
-        graph_b_agent2_bench_files = [f'{path}{timestamp}_graphB_agent2_bench{bench_num}_{benchmarking_counter}.txt'
-                                      for bench_num in range(1, 22)]
+        # graph_a_agent2_bench_files = [f'{path}{timestamp}_graphA_agent2_bench{bench_num}_{benchmarking_counter}.txt'
+        #                               for bench_num in range(1, 22)]
+        # graph_b_agent2_bench_files = [f'{path}{timestamp}_graphB_agent2_bench{bench_num}_{benchmarking_counter}.txt'
+        #                               for bench_num in range(1, 22)]
 
         graph_a_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graphs[0], f'bench{bench_num}')) for
                                        bench_num
@@ -389,12 +393,15 @@ class GameInterface:
         graph_b_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graphs[1], f'bench{bench_num}')) for
                                        bench_num
                                        in range(1, 22)]
-        graph_a_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[0], f'bench{bench_num}')) for
+        graph_c_agent1_bench_arrays = [np.array(getattr(self.improved_agent_1.graphs[2], f'bench{bench_num}')) for
                                        bench_num
                                        in range(1, 22)]
-        graph_b_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[1], f'bench{bench_num}')) for
-                                       bench_num
-                                       in range(1, 22)]
+        # graph_a_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[0], f'bench{bench_num}')) for
+        #                                bench_num
+        #                                in range(1, 22)]
+        # graph_b_agent2_bench_arrays = [np.array(getattr(self.improved_agent_2.graphs[1], f'bench{bench_num}')) for
+        #                                bench_num
+        #                                in range(1, 22)]
 
         np.savetxt(playing_file, playing_array, delimiter=',', fmt="%.6f")
         np.savetxt(evaluation_file, evaluation_array, delimiter=',', fmt="%.6f")
@@ -414,8 +421,9 @@ class GameInterface:
         for i in range(len(graph_a_agent1_bench_files)):
             np.savetxt(graph_a_agent1_bench_files[i], graph_a_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
             np.savetxt(graph_b_agent1_bench_files[i], graph_b_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
-            np.savetxt(graph_a_agent2_bench_files[i], graph_a_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
-            np.savetxt(graph_b_agent2_bench_files[i], graph_b_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
+            np.savetxt(graph_c_agent1_bench_files[i], graph_c_agent1_bench_arrays[i], delimiter=',', fmt="%.6f")
+            # np.savetxt(graph_a_agent2_bench_files[i], graph_a_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
+            # np.savetxt(graph_b_agent2_bench_files[i], graph_b_agent2_bench_arrays[i], delimiter=',', fmt="%.6f")
 
         np.savetxt(learning_bench1_file, learning_bench1_array, delimiter=',', fmt="%.6f")
         np.savetxt(evaluator_bench1_file, evaluator_bench1_array, delimiter=',', fmt="%.6f")
@@ -431,8 +439,9 @@ class GameInterface:
         for i in range(1, 22):
             setattr(self.improved_agent_1.graphs[0], f'bench{i}', [])
             setattr(self.improved_agent_1.graphs[1], f'bench{i}', [])
-            setattr(self.improved_agent_2.graphs[0], f'bench{i}', [])
-            setattr(self.improved_agent_2.graphs[1], f'bench{i}', [])
+            setattr(self.improved_agent_1.graphs[2], f'bench{i}', [])
+            # setattr(self.improved_agent_2.graphs[0], f'bench{i}', [])
+            # setattr(self.improved_agent_2.graphs[1], f'bench{i}', [])
         for i in range(1, 4):
             setattr(self.improved_agent_1.path_evaluator, f'bench{i}', [])
             setattr(self.improved_agent_2.path_evaluator, f'bench{i}', [])

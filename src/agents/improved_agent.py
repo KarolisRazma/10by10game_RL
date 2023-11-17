@@ -184,9 +184,9 @@ class ImprovedAgent(ag.Agent):
         if board_values[4] == 1:
             self.graph = self.graphs[0]
         elif board_values[4] == 2:
-            self.graph = self.graphs[0] if is_starting else self.graphs[1]
-        elif board_values[4] == 3:
             self.graph = self.graphs[1]
+        elif board_values[4] == 3:
+            self.graph = self.graphs[2]
 
         container_chips_count = initial_data.container_chips_count
 
