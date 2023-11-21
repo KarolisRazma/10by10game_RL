@@ -7,10 +7,10 @@ class StateInfo:
         self.chips_left = chips_left
 
         # Counters
-        self.times_visited = None
-        self.win_counter = None
-        self.lose_counter = None
-        self.draw_counter = None
+        self.times_visited = 0
+        self.win_counter = 0
+        self.lose_counter = 0
+        self.draw_counter = 0
 
         # Flag
         self.is_initial_state = False

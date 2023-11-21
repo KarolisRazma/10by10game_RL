@@ -7,4 +7,4 @@ class TakingRelationInfo:
         # [row, col, value]
         self.last_placed_chip = last_placed_chip
 
-        self.q_value = None
+        self.q_value = 0.0

@@ -350,6 +350,57 @@ class Graph:
             updated_records.append(self.make_state_info_from_record(record))
         return updated_records
 
+    def update_all(self, relation_info, next_state_info):
+        if isinstance(relation_info, pri.PlacingRelationInfo):
+            query = """
+                MATCH (:GameState)-[r:NEXT_PLACING {row: $row, col: $col, chip_value: $chip_value}]->(n:GameState {
+                        board_values: $n_board_values,
+                        my_turn: $n_turn,
+                        my_score: $n_my_score,
+                        enemy_score: $n_enemy_score,
+                        chips_left: $n_chips_left})
+                SET r.q_value = $qvalue
+                SET n.times_visited = $times_visited
+                SET n.win_counter = $win_counter
+                SET n.lose_counter = $lose_counter
+                SET n.draw_counter = $draw_counter 
+            """
+            self.session.run(query, row=relation_info.row, col=relation_info.col, chip_value=relation_info.chip_value,
+                             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
+                             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
+                             n_chips_left=next_state_info.chips_left,
+                             qvalue=relation_info.q_value, times_visited=next_state_info.times_visited,
+                             win_counter=next_state_info.win_counter, lose_counter=next_state_info.lose_counter,
+                             draw_counter=next_state_info.draw_counter)
+        elif isinstance(relation_info, tri.TakingRelationInfo):
+            converted_combination = []
+            for chip in relation_info.combination:
+                converted_combination.append(chip.row)
+                converted_combination.append(chip.col)
+                converted_combination.append(chip.value)
+            query = """
+                        MATCH (:GameState)-[r:NEXT_TAKING {combination: $combination,
+                         last_placed_chip: $last_placed_chip}]->(n:GameState {
+                                board_values: $n_board_values,
+                                my_turn: $n_turn,
+                                my_score: $n_my_score,
+                                enemy_score: $n_enemy_score,
+                                chips_left: $n_chips_left})
+                        SET r.q_value = $qvalue
+                        SET n.times_visited = $times_visited
+                        SET n.win_counter = $win_counter
+                        SET n.lose_counter = $lose_counter
+                        SET n.draw_counter = $draw_counter 
+                    """
+            self.session.run(query, combination=converted_combination, last_placed_chip=relation_info.last_placed_chip,
+                             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
+                             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
+                             n_chips_left=next_state_info.chips_left,
+                             qvalue=relation_info.q_value, times_visited=next_state_info.times_visited,
+                             win_counter=next_state_info.win_counter, lose_counter=next_state_info.lose_counter,
+                             draw_counter=next_state_info.draw_counter
+                             )
+
     def set_q_value(self, current_state_info, next_state_info, relation_info):
         start_timer = time.time()
         self.session.run(
@@ -572,29 +623,21 @@ class Graph:
 
         if 'times_visited' in node_properties.keys():
             times_visited = int(node_properties['times_visited'])
-        else:
-            times_visited = None
+            state_info.times_visited = times_visited
 
         if 'win_counter' in node_properties.keys():
             win_counter = int(node_properties['win_counter'])
-        else:
-            win_counter = None
+            state_info.win_counter = win_counter
 
         if 'lose_counter' in node_properties.keys():
             lose_counter = int(node_properties['lose_counter'])
-        else:
-            lose_counter = None
+            state_info.lose_counter = lose_counter
 
         if 'draw_counter' in node_properties.keys():
             draw_counter = int(node_properties['draw_counter'])
-        else:
-            draw_counter = None
+            state_info.draw_counter = draw_counter
 
         # Set it to the StateInfo object
-        state_info.times_visited = times_visited
-        state_info.win_counter = win_counter
-        state_info.lose_counter = lose_counter
-        state_info.draw_counter = draw_counter
         state_info.is_initial_state = node_properties['initial_state']
         end_timer = time.time()
         self.bench19.append(end_timer - start_timer)
@@ -609,10 +652,8 @@ class Graph:
 
         if 'q_value' in relation_properties.keys():
             q_value = float(relation_properties['q_value'])
-        else:
-            q_value = None
+            placing_relation_info.q_value = q_value
 
-        placing_relation_info.q_value = q_value
         end_timer = time.time()
         self.bench20.append(end_timer - start_timer)
         return placing_relation_info
@@ -637,10 +678,8 @@ class Graph:
 
         if 'q_value' in relation_properties.keys():
             q_value = float(relation_properties['q_value'])
-        else:
-            q_value = None
+            taking_relation_info.q_value = q_value
 
-        taking_relation_info.q_value = q_value
         end_timer = time.time()
         self.bench21.append(end_timer - start_timer)
         return taking_relation_info

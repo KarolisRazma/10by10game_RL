@@ -4,4 +4,4 @@ class PlacingRelationInfo:
         self.col = col
         self.chip_value = chip_value
 
-        self.q_value = None
+        self.q_value = 0.0

@@ -32,7 +32,7 @@ driver.verify_connectivity()
 
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
-session_improved_agent_1 = driver.session(database="agent1-20231112-a")
+session_improved_agent_1 = driver.session(database="agent2-20231111-a")
 graph_improved_agent_1 = Graph(session_improved_agent_1)
 
 session_improved_agent_2 = driver.session(database="agent2-20231021")
