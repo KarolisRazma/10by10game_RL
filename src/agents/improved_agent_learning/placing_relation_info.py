@@ -5,3 +5,6 @@ class PlacingRelationInfo:
         self.chip_value = chip_value
 
         self.q_value = None
+
+    def to_string(self):
+        return f'\nPlacing Rel Info\nRow: {self.row}\nCol: {self.col}\nChip value: {self.chip_value}\nQValue: {self.q_value}\n'

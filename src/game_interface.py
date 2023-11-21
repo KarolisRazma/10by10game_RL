@@ -33,16 +33,16 @@ driver.verify_connectivity()
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
 session_improved_agent_1A = driver.session(database="agent1-20231114-a")
-graph_improved_agent_1A = Graph(session_improved_agent_1A)
+graph_improved_agent_1A = Graph(session_improved_agent_1A, name="A")
 session_improved_agent_1B = driver.session(database="agent1-20231114-b")
-graph_improved_agent_1B = Graph(session_improved_agent_1B)
+graph_improved_agent_1B = Graph(session_improved_agent_1B, name="B")
 session_improved_agent_1C = driver.session(database="agent1-20231114-c")
-graph_improved_agent_1C = Graph(session_improved_agent_1C)
+graph_improved_agent_1C = Graph(session_improved_agent_1C, name="C")
 
 session_improved_agent_2A = driver.session(database="agent2-20231111-a")
-graph_improved_agent_2A = Graph(session_improved_agent_2A)
+graph_improved_agent_2A = Graph(session_improved_agent_2A, name="A")
 session_improved_agent_2B = driver.session(database="agent2-20231111-b")
-graph_improved_agent_2B = Graph(session_improved_agent_2B)
+graph_improved_agent_2B = Graph(session_improved_agent_2B, name="B")
 
 agent1_graphs = [graph_improved_agent_1A, graph_improved_agent_1B, graph_improved_agent_1C]
 agent2_graphs = [graph_improved_agent_2A, graph_improved_agent_2B]
@@ -193,6 +193,8 @@ class GameInterface:
             benchmarks_playing = []
             benchmarks_evaluation = []
             do_benchmarking_counter = 1
+            file = open('/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/turns_counter.txt',
+                        'w')
 
             start = time.time()
             for i in range(episodes):
@@ -210,6 +212,9 @@ class GameInterface:
                 self.environment.start_episode()
                 playing_timer_end = time.time()
                 benchmarks_playing.append(playing_timer_end - playing_timer_start)
+
+                file.write(str(self.environment.turns_in_episode))
+                file.write(',')
 
                 evaluation_timer_start = time.time()
                 # Evaluate ImprovedAgent path
@@ -243,6 +248,7 @@ class GameInterface:
             print(f'Draws: {self.environment.agents[1].draws}')
 
             self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+            file.close()
 
     def process_graph_deletion_option(self):
         while True:

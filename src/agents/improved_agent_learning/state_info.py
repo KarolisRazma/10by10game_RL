@@ -20,3 +20,27 @@ class StateInfo:
         self.win_counter = win_counter
         self.lose_counter = lose_counter
         self.draw_counter = draw_counter
+
+    def print(self):
+        print("StateInfo data")
+        print(f'Board values: {self.board_values}')
+        print(f'Is my turn: {self.my_turn}')
+        print(f'My score: {self.my_score}')
+        print(f'Enemy score: {self.enemy_score}')
+        print(f'Chips left: {self.chips_left}')
+        print(f'Times visited: {self.times_visited}')
+        print(f'Win: {self.win_counter}')
+        print(f'Lose: {self.lose_counter}')
+        print(f'Draw: {self.draw_counter}')
+
+    def to_string(self):
+        return f'\nStateInfo data\n' + \
+               f'Board values: {self.board_values}\n' + \
+               f'Is my turn: {self.my_turn}\n' + \
+               f'My score: {self.my_score}\n' + \
+               f'Enemy score: {self.enemy_score}\n' + \
+               f'Chips left: {self.chips_left}\n' + \
+               f'Times visited: {self.times_visited}\n' + \
+               f'Win: {self.win_counter}\n' + \
+               f'Lose: {self.lose_counter}\n' + \
+               f'Draw: {self.draw_counter}\n'

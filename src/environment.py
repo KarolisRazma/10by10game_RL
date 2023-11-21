@@ -41,6 +41,7 @@ class Environment:
 
         # Count episodes played
         self.episodes = 0
+        self.turns_in_episode = 0
 
         # Field to store last placed chip (Chip object)
         self.last_placed_chip = None
@@ -298,6 +299,7 @@ class Environment:
         # Agent takes these chips
         # Except the one placed this round
         if combinations:
+            self.turns_in_episode += 1
             start_timer = time.time()
             # Sets taking_combination to [chip_1, chip_2, ... chip_n]
             combination = agent.select_taking_action(game_board=self.board,
@@ -381,6 +383,7 @@ class Environment:
     def start_episode(self):
         # Initial game settings (1.1)
         turn = 0
+        self.turns_in_episode = 0
         self.reset()
 
         # Store agents seperately for episode (1.2)
@@ -401,6 +404,7 @@ class Environment:
 
         # Game loop starts here (2)
         while True:
+            self.turns_in_episode += 1
             start_timer = time.time()
             self.log_turn_start(turn)
             end_timer = time.time()

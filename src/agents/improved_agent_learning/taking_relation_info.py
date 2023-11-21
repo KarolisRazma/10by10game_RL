@@ -8,3 +8,6 @@ class TakingRelationInfo:
         self.last_placed_chip = last_placed_chip
 
         self.q_value = None
+
+    def to_string(self):
+        return f'\nTaking Rel Info\nCombination: {self.combination}\nLast placed chip: {self.last_placed_chip}\nQValue: {self.q_value}\n'

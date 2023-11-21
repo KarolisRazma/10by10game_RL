@@ -1,5 +1,5 @@
 import time
-
+from src.utilities.logger import Logger
 
 class PathEvaluator:
     # field path stores Path object
@@ -10,6 +10,8 @@ class PathEvaluator:
         self.bench1 = []    # Update counters in DB
         self.bench2 = []    # Calculate Q-Value
         self.bench3 = []    # Update Q-Value in DB
+
+        self.logs = Logger("path_evaluator_log", "spikes_path_evaluator")
 
     # argument path is Path object
     def set_path(self, path):
@@ -66,7 +68,21 @@ class PathEvaluator:
                 start_timer = time.time()
                 graph.update_node_after_episode(state_info)
                 end_timer = time.time()
-                self.bench1.append(end_timer - start_timer)
+
+                time_taken = end_timer - start_timer
+                self.bench1.append(time_taken)
+
+                if time_taken >= 0.2:
+                    self.logs.write(f'Graph name: {graph.name}')
+                    self.logs.write(f'In path evaluator bench1\n')
+                    self.logs.write(state_info.to_string())
+                    self.logs.write(f'Path\n')
+                    self.logs.write(f'States\n')
+                    for state in self.path.state_info_list:
+                        self.logs.write(state.to_string())
+                    self.logs.write(f'Relations\n')
+                    for rel in self.path.relation_info_list:
+                        self.logs.write(rel.to_string())
 
             # Relations
             if relations_length > 0:
@@ -84,6 +100,19 @@ class PathEvaluator:
                                                                        is_game_drawn=is_game_drawn)
                 end_timer = time.time()
                 self.bench2.append(end_timer - start_timer)
+                time_taken = end_timer - start_timer
+                if time_taken >= 0.2:
+                    self.logs.write(f'Graph name: {graph.name}')
+                    self.logs.write(f'In path evaluator bench2\n')
+                    self.logs.write(state_info.to_string())
+                    self.logs.write(relation_info.to_string())
+                    self.logs.write(f'Path\n')
+                    self.logs.write(f'States\n')
+                    for state in self.path.state_info_list:
+                        self.logs.write(state.to_string())
+                    self.logs.write(f'Relations\n')
+                    for rel in self.path.relation_info_list:
+                        self.logs.write(rel.to_string())
 
                 # Update q-value
                 start_timer = time.time()

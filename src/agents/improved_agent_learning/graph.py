@@ -32,8 +32,9 @@ import time
 
 
 class Graph:
-    def __init__(self, session):
+    def __init__(self, session, name):
         self.session = session
+        self.name = name
 
         self.bench1 = []    # Add game state
         self.bench2 = []    # Create next node and make placing rel
@@ -92,6 +93,9 @@ class Graph:
     # @argument next_state_info             --> StateInfo object
     # @argument action                      --> list of ints [row, col, chip_value]
     def create_next_node_and_make_placing_relation(self, current_state_info, next_state_info, action):
+        # Using neo4j best practices
+        default_initial_state = False
+
         start_timer = time.time()
         result = self.session.run(
             """ 
@@ -107,7 +111,7 @@ class Graph:
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
             chips_left: $n_chips_left,
-            initial_state: false})
+            initial_state: $default_initial_state})
             MERGE (curr)-[rel:NEXT_PLACING {row: $row, col: $col, chip_value: $value}]->(next) 
             RETURN next, rel
             """,
@@ -116,7 +120,7 @@ class Graph:
             c_chips_left=current_state_info.chips_left,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, default_initial_state=default_initial_state,
             row=action.row, col=action.col, value=action.value
         )
         end_timer = time.time()
@@ -144,6 +148,9 @@ class Graph:
             updated_action.append(chip.col)
             updated_action.append(chip.value)
 
+        # Using neo4j best practices
+        default_initial_state = False
+
         start_timer = time.time()
         result = self.session.run(
             """ 
@@ -159,7 +166,7 @@ class Graph:
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
             chips_left: $n_chips_left,
-            initial_state: false})
+            initial_state: $default_initial_state})
             MERGE (curr)-[rel:NEXT_TAKING {combination: $combination, last_placed_chip: $last_placed_chip}]->(next)
             RETURN next, rel
             """,
@@ -168,7 +175,7 @@ class Graph:
             c_chips_left=current_state_info.chips_left,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, default_initial_state=default_initial_state,
             combination=updated_action, last_placed_chip=last_placed_chip
         )
         end_timer = time.time()
@@ -207,7 +214,12 @@ class Graph:
             lose_counter=state_info.lose_counter, draw_counter=state_info.draw_counter
         )
         end_timer = time.time()
-        self.bench4.append(end_timer - start_timer)
+        time_taken = end_timer - start_timer
+        self.bench4.append(time_taken)
+        if time_taken >= 0.2:
+            print(f'In graph {self.name} bench4')
+            print(f'Time taken: {time_taken}')
+            state_info.print()
 
     # For returning an action (not relation info)
     # ---------------------------------------------------------------------
@@ -462,7 +474,8 @@ class Graph:
                                   c_my_score=state_info.my_score, c_enemy_score=state_info.enemy_score,
                                   c_chips_left=state_info.chips_left)
         end_timer = time.time()
-        self.bench12.append(end_timer - start_timer)
+        time_taken = end_timer - start_timer
+        self.bench12.append(time_taken)
 
         records = list(result)
         updated_records = []
@@ -472,6 +485,13 @@ class Graph:
                 updated_records.append(self.make_placing_relation_info_from_record(rel_properties))
             elif rel_type == "taking":
                 updated_records.append(self.make_taking_relation_info_from_record(rel_properties))
+
+        if time_taken >= 0.10:
+            print(f'In graph {self.name} bench12')
+            print(f'Time taken: {time_taken}')
+            state_info.print()
+            print(f'Relations "{rel_type}" found: {len(updated_records)}')
+
         return updated_records
 
     def find_next_state_by_placing_relation(self, current_state_info, relation_info):
