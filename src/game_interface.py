@@ -33,10 +33,10 @@ driver.verify_connectivity()
 # Create Sessions for agents (for their databases)
 # And get Graphs for agents
 session_improved_agent_1 = driver.session(database="agent1-20231112-a")
-graph_improved_agent_1 = Graph(driver, session_improved_agent_1)
+graph_improved_agent_1 = Graph(session_improved_agent_1)
 
 session_improved_agent_2 = driver.session(database="agent2-20231021")
-graph_improved_agent_2 = Graph(driver, session_improved_agent_2)
+graph_improved_agent_2 = Graph(session_improved_agent_2)
 
 
 class GameInterface:

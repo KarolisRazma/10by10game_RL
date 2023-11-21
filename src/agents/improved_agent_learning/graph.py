@@ -32,9 +32,11 @@ import time
 
 
 class Graph:
-    def __init__(self, driver, session):
-        self.driver = driver
+    def __init__(self, session):
         self.session = session
+
+        # For query optimization (it should be passed as parameter)
+        self.default_initial_state = False
 
         self.bench1 = []    # Add game state
         self.bench2 = []    # Create next node and make placing rel
@@ -108,7 +110,7 @@ class Graph:
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
             chips_left: $n_chips_left,
-            initial_state: false})
+            initial_state: $default_initial_state})
             MERGE (curr)-[rel:NEXT_PLACING {row: $row, col: $col, chip_value: $value}]->(next) 
             RETURN next, rel
             """,
@@ -117,7 +119,7 @@ class Graph:
             c_chips_left=current_state_info.chips_left,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, default_initial_state=self.default_initial_state,
             row=action.row, col=action.col, value=action.value
         )
         end_timer = time.time()
@@ -160,7 +162,7 @@ class Graph:
             my_score: $n_my_score,
             enemy_score: $n_enemy_score,
             chips_left: $n_chips_left,
-            initial_state: false})
+            initial_state: $default_initial_state})
             MERGE (curr)-[rel:NEXT_TAKING {combination: $combination, last_placed_chip: $last_placed_chip}]->(next)
             RETURN next, rel
             """,
@@ -169,7 +171,7 @@ class Graph:
             c_chips_left=current_state_info.chips_left,
             n_board_values=next_state_info.board_values, n_turn=next_state_info.my_turn,
             n_my_score=next_state_info.my_score, n_enemy_score=next_state_info.enemy_score,
-            n_chips_left=next_state_info.chips_left,
+            n_chips_left=next_state_info.chips_left, default_initial_state=self.default_initial_state,
             combination=updated_action, last_placed_chip=last_placed_chip
         )
         end_timer = time.time()
