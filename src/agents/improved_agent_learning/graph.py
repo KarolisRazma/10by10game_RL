@@ -318,11 +318,11 @@ class Graph:
 
     # Returns list of StateInfo objects
     def find_game_state_next_vertices(self, action_type, state_info):
-        if action_type == "placing":
+        if action_type == 0:
             rel_type = ":NEXT_PLACING"
-        elif action_type == "taking":
+        elif action_type == 1:
             rel_type = ":NEXT_TAKING"
-        elif action_type == "any":
+        elif action_type == 2:
             rel_type = ""
 
         query = f"""
@@ -445,9 +445,9 @@ class Graph:
         return self.make_taking_relation_info_from_record(rel_properties)
 
     def find_game_state_next_relations(self, state_info, rel_type):
-        if rel_type == 'placing':
+        if rel_type == 0:
             relation_name = "NEXT_PLACING"
-        elif rel_type == 'taking':
+        elif rel_type == 1:
             relation_name = "NEXT_TAKING"
         query = \
             f"""
@@ -471,9 +471,9 @@ class Graph:
         updated_records = []
         for record in records:
             rel_properties = record["r"]._properties
-            if rel_type == 'placing':
+            if rel_type == 0:
                 updated_records.append(self.make_placing_relation_info_from_record(rel_properties))
-            elif rel_type == "taking":
+            elif rel_type == 1:
                 updated_records.append(self.make_taking_relation_info_from_record(rel_properties))
         return updated_records
 
@@ -542,12 +542,12 @@ class Graph:
 
     def find_max_next_state_q_value(self, current_state_info):
         root_start_timer = time.time()
-        placing_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='placing')
+        placing_relations_info = self.find_game_state_next_relations(current_state_info, rel_type=0)
         end_timer = time.time()
         self.bench16.append(end_timer - root_start_timer)
 
         start_timer = time.time()
-        taking_relations_info = self.find_game_state_next_relations(current_state_info, rel_type='taking')
+        taking_relations_info = self.find_game_state_next_relations(current_state_info, rel_type=1)
         end_timer = time.time()
         self.bench17.append(end_timer - start_timer)
 

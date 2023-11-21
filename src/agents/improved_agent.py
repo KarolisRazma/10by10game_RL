@@ -198,7 +198,7 @@ class ImprovedAgent(ag.Agent):
     def get_placing_action(self, game_board):
         start_timer = time.time()
         # Gets PlacingRelationInfo objects list
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='placing')
+        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type=0)
         end_timer = time.time()
         self.bench2.append(end_timer - start_timer)
 
@@ -313,7 +313,7 @@ class ImprovedAgent(ag.Agent):
     def get_taking_action(self, combinations, last_placed_chip):
         # Gets TakingRelationInfo objects list
         start_timer = time.time()
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type='taking')
+        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type=1)
         end_timer = time.time()
         self.bench3.append(end_timer - start_timer)
 
