@@ -36,8 +36,6 @@ class Environment:
 
         # Create instance of logger
         self.game_logger = logger.Logger("game_logger", "game_logs.log")
-        self.benchmark_logger = logger.Logger("benchmark_logger", "benchmark_logs.log")
-        self.benchmark_logger_2 = logger.Logger("benchmark_logger2", "benchmark_logs_more_details.log")
 
         # Count episodes played
         self.episodes = 0

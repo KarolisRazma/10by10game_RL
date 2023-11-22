@@ -53,24 +53,9 @@ class Board:
             if not self.is_tile_empty(i):
                 self.chips[i] = cp.Chip(0)
 
-    def is_board_full(self):
-        for index in range(self.board_size):
-            if self.is_tile_empty(index):
-                return False
-        return True
-
     def remove_chip(self, index):
         if index < self.board_size:
             self.chips[index] = cp.Chip(0)
-
-    def add_chip(self, index, chip):
-        if index < self.board_size:
-            self.chips[index] = chip
-
-    def add_chip_rowcol(self, row, col, chip):
-        chip.row = row
-        chip.col = col
-        self.chips[row * self.border_length + col] = chip
 
     def is_tile_empty(self, index):
         if index < self.board_size:
@@ -79,27 +64,12 @@ class Board:
             else:
                 return False    
 
-    # get chip
-    def get_chip_at_index(self, index):
-        if index < self.board_size and not self.is_tile_empty(index):
-            return self.chips[index]
-
-    # get tile
     def get_tile_at_index(self, index):
         if index < self.board_size:
             return self.tiles[index]
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
-
-    # TODO decent CLI to check agents gameplay or interact with the game
-    # This is not a decent CLI
-    def display(self):
-        for (i, chip) in zip(range(self.board_size), self.chips):
-            if i % self.border_length == self.border_length - 1:
-                print(chip.value)
-            else:
-                print(chip.value, end=" ")
 
     def board_to_string(self):
         board = ""

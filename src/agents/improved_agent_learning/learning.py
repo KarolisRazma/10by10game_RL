@@ -11,9 +11,6 @@ class RLearning:
         # A learning rate of zero would make the agent not learn anything new.
         # A learning rate of one would mean that only the most recent information is considered.
 
-        # TODO I think modification can rapidly increase win rate:
-        # TODO node gets more reliability when it is more then several times played before
-
         self.discount_rate = discount_rate  # gamma in math
         self.learning_rate = learning_rate  # alpha in math
 
