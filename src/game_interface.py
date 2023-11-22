@@ -42,9 +42,9 @@ class GameInterface:
         self.random_walker_agent_1 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_1)
         self.random_walker_agent_2 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_2)
 
-        graph_improved_agent_1, graph_improved_agent_2 = self.initialize_database()
+        self.database_driver, self.graph_improved_agent_1, self.graph_improved_agent_2 = self.initialize_database()
         self.improved_agent_1 = ImprovedAgent(name=ImprovedAgent1Parameters.name,
-                                              graph=graph_improved_agent_1,
+                                              graph=self.graph_improved_agent_1,
                                               learning_algorithm=RLearning(ImprovedAgent1Parameters.discount_rate,
                                                                            ImprovedAgent1Parameters.learning_rate),
                                               exploit_growth=ImprovedAgent1Parameters.exploit_growth,
@@ -54,7 +54,7 @@ class GameInterface:
                                               )
 
         self.improved_agent_2 = ImprovedAgent(name=ImprovedAgent2Parameters.name,
-                                              graph=graph_improved_agent_2,
+                                              graph=self.graph_improved_agent_2,
                                               learning_algorithm=RLearning(ImprovedAgent2Parameters.discount_rate,
                                                                            ImprovedAgent2Parameters.learning_rate),
                                               exploit_growth=ImprovedAgent2Parameters.exploit_growth,
@@ -101,7 +101,8 @@ class GameInterface:
     def initialize_database():
         driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
         driver.verify_connectivity()
-        return Graph(driver.session(database=ImprovedAgent1Parameters.database)), \
+        return driver,\
+               Graph(driver.session(database=ImprovedAgent1Parameters.database)), \
                Graph(driver.session(database=ImprovedAgent2Parameters.database))
 
     def show_initial_options(self):
