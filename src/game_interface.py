@@ -13,6 +13,7 @@ from src.environment import Environment
 import src.utilities.constants3x3 as c3x3
 import src.utilities.constants5x5 as c5x5
 import src.utilities.gi_constants as GI_CONSTANTS
+from src.utilities.parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters
 
 # Agents
 from src.agents.random_walker_agent import RandomWalkerAgent
@@ -22,21 +23,6 @@ from src.agents.improved_agent import ImprovedAgent
 import time
 import statistics
 import numpy as np
-
-# Database
-uri = "bolt://localhost:7687"
-username = "neo4j"
-password = "password"
-driver = GraphDatabase.driver(uri, auth=(username, password))
-driver.verify_connectivity()
-
-# Create Sessions for agents (for their databases)
-# And get Graphs for agents
-session_improved_agent_1 = driver.session(database="agent2-20231111-a")
-graph_improved_agent_1 = Graph(session_improved_agent_1)
-
-session_improved_agent_2 = driver.session(database="agent2-20231021")
-graph_improved_agent_2 = Graph(session_improved_agent_2)
 
 
 class GameInterface:
@@ -56,20 +42,25 @@ class GameInterface:
         self.random_walker_agent_1 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_1)
         self.random_walker_agent_2 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_2)
 
-        self.improved_agent_1 = ImprovedAgent(name=GI_CONSTANTS.IMPROVED_1,
+        graph_improved_agent_1, graph_improved_agent_2 = self.initialize_database()
+        self.improved_agent_1 = ImprovedAgent(name=ImprovedAgent1Parameters.name,
                                               graph=graph_improved_agent_1,
-                                              learning_algorithm=RLearning(discount_rate=0.9, learning_rate=0.9),
-                                              exploit_growth=0.06,
-                                              explore_minimum=0.10,
-                                              is_improved_exploitation_on=True,
+                                              learning_algorithm=RLearning(ImprovedAgent1Parameters.discount_rate,
+                                                                           ImprovedAgent1Parameters.learning_rate),
+                                              exploit_growth=ImprovedAgent1Parameters.exploit_growth,
+                                              explore_minimum=ImprovedAgent1Parameters.explore_minimum,
+                                              is_improved_exploitation_on=
+                                              ImprovedAgent1Parameters.is_improved_exploitation_on,
                                               )
 
-        self.improved_agent_2 = ImprovedAgent(name=GI_CONSTANTS.IMPROVED_2,
+        self.improved_agent_2 = ImprovedAgent(name=ImprovedAgent2Parameters.name,
                                               graph=graph_improved_agent_2,
-                                              learning_algorithm=RLearning(discount_rate=0.9, learning_rate=0.9),
-                                              exploit_growth=0.06,
-                                              explore_minimum=0.10,
-                                              is_improved_exploitation_on=True,
+                                              learning_algorithm=RLearning(ImprovedAgent2Parameters.discount_rate,
+                                                                           ImprovedAgent2Parameters.learning_rate),
+                                              exploit_growth=ImprovedAgent2Parameters.exploit_growth,
+                                              explore_minimum=ImprovedAgent2Parameters.explore_minimum,
+                                              is_improved_exploitation_on=
+                                              ImprovedAgent2Parameters.is_improved_exploitation_on,
                                               )
 
         # Initial options list
@@ -105,6 +96,13 @@ class GameInterface:
         for option in options:
             print(f'[{option_counter}] {option}')
             option_counter += 1
+
+    @staticmethod
+    def initialize_database():
+        driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+        driver.verify_connectivity()
+        return Graph(driver.session(database=ImprovedAgent1Parameters.database)), \
+               Graph(driver.session(database=ImprovedAgent2Parameters.database))
 
     def show_initial_options(self):
         while True:
