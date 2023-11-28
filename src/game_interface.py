@@ -13,6 +13,7 @@ from src.environment import Environment
 import src.utilities.constants3x3 as c3x3
 import src.utilities.constants5x5 as c5x5
 import src.utilities.gi_constants as GI_CONSTANTS
+from src.game_components.game_result import GameResult
 from src.utilities.parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters
 
 # Agents
@@ -101,7 +102,7 @@ class GameInterface:
     def initialize_database():
         driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
         driver.verify_connectivity()
-        return driver,\
+        return driver, \
                Graph(driver.session(database=ImprovedAgent1Parameters.database)), \
                Graph(driver.session(database=ImprovedAgent2Parameters.database))
 
@@ -189,7 +190,7 @@ class GameInterface:
 
                 if i != 0 and i % 100 == 0:
                     print(f'Reached {do_benchmarking_counter}')
-                    self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+                    # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
                     do_benchmarking_counter += 1
                     benchmarks_playing = []
                     benchmarks_evaluation = []
@@ -214,6 +215,13 @@ class GameInterface:
                 evaluation_timer_end = time.time()
                 benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
 
+                # Get the agent, who have won the game
+                winner_agent = self.environment.agents[0]\
+                    if self.environment.agents[0].last_game_result == GameResult.WON else self.environment.agents[1]
+
+                if isinstance(winner_agent, ImprovedAgent):
+                    winner_agent.begin_state_closing()
+
                 # Log wins/loses/draws
                 self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'
                                                    f' won {self.environment.agents[0].wins}')
@@ -232,7 +240,7 @@ class GameInterface:
             print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')
             print(f'Draws: {self.environment.agents[1].draws}')
 
-            self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+            # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
 
     def process_graph_deletion_option(self):
         while True:

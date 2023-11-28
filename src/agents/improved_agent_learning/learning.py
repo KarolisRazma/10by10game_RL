@@ -1,5 +1,7 @@
 import time
 
+from src.game_components.game_result import GameResult
+
 
 class RLearning:
     def __init__(self, discount_rate, learning_rate):
@@ -14,13 +16,13 @@ class RLearning:
         self.discount_rate = discount_rate  # gamma in math
         self.learning_rate = learning_rate  # alpha in math
 
-        self.bench1 = []    # Execute find_max_next_state_q_value
+        self.bench1 = []  # Execute find_max_next_state_q_value
 
-    def calc_new_q_value(self, graph, state_info, relation_info, is_final_state, is_game_won, is_game_drawn):
+    def calc_new_q_value(self, graph, state_info, relation_info, is_final_state, last_game_result):
         current_q_value = relation_info.q_value
 
         if is_final_state:
-            reward = self.reward(is_game_won, is_game_drawn)
+            reward = self.reward(last_game_result)
             new_q_value = reward
         else:
             start_timer = time.time()
@@ -33,15 +35,12 @@ class RLearning:
         return new_q_value
 
     @staticmethod
-    def reward(is_game_won, is_game_drawn):
-        # Agent reached WIN
-        if is_game_won:
+    def reward(last_game_result):
+        if last_game_result == GameResult.WON:
             return 100000
 
-        # Agent reached DRAW
-        elif is_game_drawn:
-            return 5000
-
-        # Agent reached LOSE
-        if not is_game_won:
+        elif last_game_result == GameResult.LOST:
             return -100000
+
+        elif last_game_result == GameResult.DRAW:
+            return 5000

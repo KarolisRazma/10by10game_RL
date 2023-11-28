@@ -17,22 +17,22 @@ class Agent(ABC):
         self.draws = 0
 
         # Endgame result flags: None at init
-        self.is_game_won = None
-        self.is_game_drawn = None
+        self.last_game_result = None
 
     # Resets episode details
     def reset(self):
         self.score = 0
         self.hand_chips = []
         self.captured_chips = []
-        self.is_game_won = None
-        self.is_game_drawn = None
 
     # Returns used chip and deletes it from agent's hand
     def use_chip(self, chip_index):
         chip = self.hand_chips[chip_index]
         del self.hand_chips[chip_index]
         return chip
+
+    def get_hand_chips_values_list(self):
+        return [chip.value for chip in self.hand_chips]
 
     @abstractmethod
     def process_initial_state(self, initial_data):
@@ -47,5 +47,5 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
+    def select_taking_action(self, game_board, combinations):
         pass

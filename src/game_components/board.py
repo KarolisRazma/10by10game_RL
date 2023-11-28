@@ -82,3 +82,16 @@ class Board:
 
     def board_to_chip_values(self):
         return [chip.value for chip in self.chips]
+
+    def from_board_values_to_board(self, board_values):
+        for i in range(self.board_size):
+            if board_values[i] == 1:
+                chip = cp.Chip(1)
+            elif board_values[i] == 2:
+                chip = cp.Chip(2)
+            elif board_values[i] == 3:
+                chip = cp.Chip(3)
+            chip.row = int(i / self.border_length)
+            chip.col = i % self.border_length
+            self.chips[i] = chip
+

@@ -12,7 +12,7 @@ class RandomWalkerAgent(Agent):
     def select_placing_action(self, game_board):
         return self.get_action_for_placing(game_board)
 
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
+    def select_taking_action(self, game_board, combinations):
         random_combination_index = random.randint(0, len(combinations) - 1)
         return combinations[random_combination_index]
 

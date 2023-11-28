@@ -10,6 +10,7 @@ import numpy as np
 import random
 
 from src.agents.actions.placing_action import PlaceChipAction
+from src.agents.improved_agent_learning.game_state_closer import GameStateCloser
 from src.utilities.state_changes import StateChangeType, StateChangeData, InitialStateData
 from src.agents.improved_agent_learning.state_info import StateInfo
 
@@ -52,6 +53,11 @@ class ImprovedAgent(ag.Agent):
         self.behaviour = [Behaviour.EXPLOIT, Behaviour.EXPLORE]
         self.is_improved_exploitation_on = is_improved_exploitation_on
 
+        # Last placed chip value
+        self.my_last_placed_chip_value = None
+
+        self.game_state_closer = GameStateCloser(graph)
+
         self.bench1 = []  # Placing Explore
         self.bench2 = []  # Gets PlacingRelationInfo objects list
         self.bench3 = []  # Gets TakingRelationInfo objects list
@@ -74,8 +80,8 @@ class ImprovedAgent(ag.Agent):
     def select_placing_action(self, game_board):
         return self.get_placing_action(game_board)
 
-    def select_taking_action(self, game_board, combinations, last_placed_chip):
-        return self.get_taking_action(combinations, last_placed_chip)
+    def select_taking_action(self, game_board, combinations):
+        return self.get_taking_action(combinations)
 
     def process_state_changes(self, changes_type, changes_data):
         if changes_type == StateChangeType.PLACING:
@@ -90,13 +96,23 @@ class ImprovedAgent(ag.Agent):
         enemy_score = changes_data.enemy_score
         chips_left = changes_data.container_chips_count
         placing_action = changes_data.placing_action
+        last_placed_chip = [changes_data.last_placed_chip.row, changes_data.last_placed_chip.col,
+                            changes_data.last_placed_chip.value]
+
+        # Calculating hand chip values and sorting to accending order
+        hand_chips_values = self.get_hand_chips_values_list()
+        if my_turn:
+            hand_chips_values.append(self.my_last_placed_chip_value)
+        sorted_hand_chips_values = sorted(hand_chips_values)
 
         # Create StateInfo object with next state data
         next_state_info = StateInfo(board_values=board_values,
                                     my_turn=my_turn,
                                     my_score=my_score,
                                     enemy_score=enemy_score,
-                                    chips_left=chips_left)
+                                    chips_left=chips_left,
+                                    hand_chips_values=sorted_hand_chips_values,
+                                    last_placed_chip=last_placed_chip)
 
         start_timer = time.time()
         # Update agent's graph with next board state and placing relation
@@ -105,6 +121,9 @@ class ImprovedAgent(ag.Agent):
                                                                   next_state_info, placing_action)
         end_timer = time.time()
         self.bench10.append(end_timer - start_timer)
+
+        # Include container in StateInfo
+        updated_next_state_info.container = changes_data.container
 
         # Append placing relation and next state to path
         self.last_episode_path.relation_info_list.append(placing_relation_info)
@@ -119,24 +138,34 @@ class ImprovedAgent(ag.Agent):
         my_score = self.score
         enemy_score = changes_data.enemy_score
         chips_left = changes_data.container_chips_count
-        taking_combination = changes_data.taking_combination
+        combination = changes_data.taking_combination
         last_placed_chip = [changes_data.last_placed_chip.row, changes_data.last_placed_chip.col,
                             changes_data.last_placed_chip.value]
+
+        # Calculating hand chip values and sorting to accending order
+        hand_chips_values = self.get_hand_chips_values_list()
+        if my_turn:
+            hand_chips_values.append(self.my_last_placed_chip_value)
+        sorted_hand_chips_values = sorted(hand_chips_values)
 
         # Create StateInfo object with next state data
         next_state_info = StateInfo(board_values=board_values,
                                     my_turn=my_turn,
                                     my_score=my_score,
                                     enemy_score=enemy_score,
-                                    chips_left=chips_left)
+                                    chips_left=chips_left,
+                                    hand_chips_values=sorted_hand_chips_values,
+                                    last_placed_chip=last_placed_chip)
 
         start_timer = time.time()
         # Update agent's graph with next board state and taking relation
         updated_next_state_info, taking_relation_info = \
-            self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info,
-                                                                 taking_combination, last_placed_chip)
+            self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info, combination)
         end_timer = time.time()
         self.bench11.append(end_timer - start_timer)
+
+        # Include container in StateInfo
+        updated_next_state_info.container = changes_data.container
 
         # Append taking relation and next state to path
         self.last_episode_path.relation_info_list.append(taking_relation_info)
@@ -159,16 +188,18 @@ class ImprovedAgent(ag.Agent):
                 end_timer = time.time()
                 self.bench1.append(end_timer - start_timer)
 
+                self.my_last_placed_chip_value = self.hand_chips[hand_chip_index].value
                 return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
 
     def reset(self):
         super().reset()
         self.last_episode_path.reset()
         self.current_state_info = None
+        self.my_last_placed_chip_value = None
 
     def eval_path_after_episode(self):
         self.path_evaluator.set_path(self.last_episode_path)
-        self.path_evaluator.eval_path(self.graph, self.is_game_won, self.is_game_drawn)
+        self.path_evaluator.eval_path(self.graph, self.last_game_result)
 
     def process_initial_state(self, initial_data: InitialStateData):
         board_values = initial_data.game_board.board_to_chip_values()
@@ -178,17 +209,24 @@ class ImprovedAgent(ag.Agent):
         is_starting = False if initial_data.is_starting else True
 
         container_chips_count = initial_data.container_chips_count
+        hand_chips_values = sorted(self.get_hand_chips_values_list())
+        last_placed_chip = [initial_data.last_placed_chip.row, initial_data.last_placed_chip.col,
+                            initial_data.last_placed_chip.value]
 
         initial_state = StateInfo(
             board_values=board_values,
             my_turn=is_starting,
             my_score=0,
             enemy_score=0,
-            chips_left=container_chips_count)
+            chips_left=container_chips_count,
+            is_initial_state=True,
+            hand_chips_values=hand_chips_values,
+            last_placed_chip=last_placed_chip
+        )
 
         start_timer = time.time()
         # Add to db
-        initial_state_updated = self.graph.add_game_state(initial_state, is_initial_state=True)
+        initial_state_updated = self.graph.add_initial_game_state(initial_state)
         end_timer = time.time()
         self.bench12.append(end_timer - start_timer)
 
@@ -246,22 +284,21 @@ class ImprovedAgent(ag.Agent):
         self.bench14.append(end_timer - start_timer)
 
         start_timer = time.time()
-        # Filter irrelevant relations(the ones, which cannot be executed)
-        filtered_relations = self.filter_placing_relations(relations)
+        positive_relations = self.filter_negative_relation_q_values(relations)
         end_timer = time.time()
         self.bench15.append(end_timer - start_timer)
 
-        # if 'filtered_relations' is empty
-        if not filtered_relations:
+        # if 'positive_relations' is empty
+        if not positive_relations:
             return self.do_explore_placing(game_board)
 
         # Set relation which holds highest q_value
-        best_relation = filtered_relations[0]
+        best_relation = positive_relations[0]
 
         # (Can be skipped) Optimization for better exploitation results
         if self.is_improved_exploitation_on:
             start_timer = time.time()
-            next_states_info = self.get_states_by_placing_actions(filtered_relations)
+            next_states_info = self.get_states_by_placing_actions(positive_relations)
             best_relation = self.get_best_placing_relation(next_states_info, best_relation)
             end_timer = time.time()
             self.bench4.append(end_timer - start_timer)
@@ -269,12 +306,14 @@ class ImprovedAgent(ag.Agent):
         exploit_end_timer = time.time()
         self.bench13.append(exploit_end_timer - exploit_start_timer)
 
+        self.my_last_placed_chip_value = best_relation.chip_value
         return PlaceChipAction(best_relation.row, best_relation.col, best_relation.chip_value)
 
     # THIS IS ONLY FOR IMPROVED EXPLOITATION
     def get_states_by_placing_actions(self, relations):
         start_timer = time.time()
         next_states_info = []
+        # todo verta pagalvoti cia dar imanoma maziau query'iu daryti
         for relation in relations:
             info = self.graph.find_next_state_by_placing_relation(self.current_state_info, relation)
             next_states_info.append(info)
@@ -283,6 +322,7 @@ class ImprovedAgent(ag.Agent):
         return next_states_info
 
     # THIS IS ONLY FOR IMPROVED EXPLOITATION
+    # todo labai baisus metodas
     def get_best_placing_relation(self, next_states_info, best_relation):
         start_timer = time.time()
         get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
@@ -310,7 +350,7 @@ class ImprovedAgent(ag.Agent):
             self.bench7.append(end_timer - start_timer)
             return best_relation
 
-    def get_taking_action(self, combinations, last_placed_chip):
+    def get_taking_action(self, combinations):
         # Gets TakingRelationInfo objects list
         start_timer = time.time()
         relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type=1)
@@ -341,14 +381,14 @@ class ImprovedAgent(ag.Agent):
         if current_behaviour == Behaviour.EXPLORE:
             return self.do_explore_taking(combinations)
         elif current_behaviour == Behaviour.EXPLOIT:
-            return self.do_exploit_taking(combinations, last_placed_chip, relations)
+            return self.do_exploit_taking(relations, combinations)
 
     @staticmethod
     def do_explore_taking(combinations):
         # Choose one combination randomly
         return combinations[random.randint(0, len(combinations) - 1)]
 
-    def do_exploit_taking(self, combinations, last_placed_chip, relations):
+    def do_exploit_taking(self, relations, combinations):
         exploit_start_timer = time.time()
 
         start_timer = time.time()
@@ -357,28 +397,23 @@ class ImprovedAgent(ag.Agent):
         end_timer = time.time()
         self.bench17.append(end_timer - start_timer)
 
-        # Before filtering irrelevant relations, reorganize Chip object into row/col/value list
-        last_placed_chip = [last_placed_chip.row, last_placed_chip.col, last_placed_chip.value]
-
         start_timer = time.time()
-        # Filter irrelevant relations(the ones, which cannot be executed)
-        filtered_relations = self.filter_taking_relations(relations, combinations, last_placed_chip)
+        positive_relations = self.filter_negative_relation_q_values(relations)
         end_timer = time.time()
         self.bench18.append(end_timer - start_timer)
 
-        # if 'filtered_relations' is empty
-        if not filtered_relations:
+        # if 'positive_relations' is empty
+        if not positive_relations:
             return self.do_explore_taking(combinations)
 
         # Set relation which holds highest q_value
-        best_relation = filtered_relations[0]
+        best_relation = positive_relations[0]
 
         # (Can be skipped) Optimization for better exploitation results
-
         if self.is_improved_exploitation_on:
             start_timer = time.time()
-            next_states_info = self.get_states_by_taking_actions(filtered_relations)
-            best_relation = self.get_best_taking_relation(next_states_info, best_relation, last_placed_chip)
+            next_states_info = self.get_states_by_taking_actions(positive_relations)
+            best_relation = self.get_best_taking_relation(next_states_info, best_relation)
             end_timer = time.time()
             self.bench5.append(end_timer - start_timer)
 
@@ -398,7 +433,8 @@ class ImprovedAgent(ag.Agent):
         self.bench8.append(end_timer - start_timer)
         return next_states_info
 
-    def get_best_taking_relation(self, next_states_info, best_relation, last_placed_chip):
+    # todo baisus metodas
+    def get_best_taking_relation(self, next_states_info, best_relation):
         start_timer = time.time()
         get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
 
@@ -416,8 +452,7 @@ class ImprovedAgent(ag.Agent):
                     best_states.append(state)
         if best_states:
             next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
-            best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state,
-                                                                 last_placed_chip)
+            best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state)
             end_timer = time.time()
             self.bench9.append(end_timer - start_timer)
             return best_relation
@@ -426,36 +461,11 @@ class ImprovedAgent(ag.Agent):
             self.bench9.append(end_timer - start_timer)
             return best_relation
 
-    def filter_placing_relations(self, relations):
-        filtered_relations = []
-        for relation in relations:
-            # Return if relations starts to be negative q-value
-            if relation.q_value < 0:
-                return filtered_relations
-            # Relation is viable if True
-            if relation.chip_value == self.hand_chips[0].value or relation.chip_value == self.hand_chips[1].value:
-                filtered_relations.append(relation)
-        return filtered_relations
-
-    def filter_taking_relations(self, relations, combinations, last_placed_chip):
-        filtered_relations = []
-        for relation in relations:
-            # Return if relations starts to be negative q-value
-            if relation.q_value < 0:
-                return filtered_relations
-            if tuple(last_placed_chip) == tuple(relation.last_placed_chip):
-                for combination in combinations:
-                    if self.is_combinations_equal(combination, relation.combination):
-                        filtered_relations.append(relation)
-                        break
-        return filtered_relations
-
     @staticmethod
-    def is_combinations_equal(comb_1, comb_2):
-        if len(comb_1) != len(comb_2):
-            return False
+    def filter_negative_relation_q_values(relations):
+        return [relation for relation in relations if relation.q_value > 0.0]
 
-        for (chip_1, chip_2) in zip(comb_1, comb_2):
-            if chip_1.row != chip_2.row or chip_1.col != chip_2.col or chip_1.value != chip_2.value:
-                return False
-        return True
+    def begin_state_closing(self):
+        # Assign previuos game path
+        self.game_state_closer.game_path = self.last_episode_path
+        self.game_state_closer.do_state_closing()

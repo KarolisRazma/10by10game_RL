@@ -1,4 +1,5 @@
 # Components
+import copy
 import time
 
 import src.game_components.board as board
@@ -13,6 +14,7 @@ import src.utilities.logger as logger
 
 import random
 
+from src.game_components.game_result import GameResult
 from src.utilities.state_changes import StateChangeData, StateChangeType, InitialStateData
 
 
@@ -124,6 +126,7 @@ class Environment:
         chip = self.container.draw_chip(chip_index_in_container)
         border_len = self.board.border_length
         self.place_chip_on_board(chip, int((border_len - 1) / 2), int((border_len - 1) / 2), border_len)
+        self.last_placed_chip = Chip(chip.value, chip.row, chip.col)
 
     def place_chip_on_board(self, chip, row, column, border_length):
         chip.row = row
@@ -202,40 +205,30 @@ class Environment:
         self.episodes += 1
         if end_game_flag == 1:
             self.agents[0].wins += 1
-            self.agents[0].is_game_won = True
-            self.agents[1].is_game_won = False
-            self.agents[0].is_game_drawn = False
-            self.agents[1].is_game_drawn = False
+            self.agents[0].last_game_result = GameResult.WON
+            self.agents[1].last_game_result = GameResult.LOST
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
-            self.agents[0].is_game_won = False
-            self.agents[1].is_game_won = True
-            self.agents[0].is_game_drawn = False
-            self.agents[1].is_game_drawn = False
+            self.agents[0].last_game_result = GameResult.LOST
+            self.agents[1].last_game_result = GameResult.WON
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
-                self.agents[0].is_game_won = True
-                self.agents[1].is_game_won = False
-                self.agents[0].is_game_drawn = False
-                self.agents[1].is_game_drawn = False
+                self.agents[0].last_game_result = GameResult.WON
+                self.agents[1].last_game_result = GameResult.LOST
                 return
             elif self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
-                self.agents[0].is_game_won = False
-                self.agents[1].is_game_won = True
-                self.agents[0].is_game_drawn = False
-                self.agents[1].is_game_drawn = False
+                self.agents[0].last_game_result = GameResult.LOST
+                self.agents[1].last_game_result = GameResult.WON
                 return
             else:
                 self.agents[0].draws += 1
                 self.agents[1].draws += 1
-                self.agents[0].is_game_won = False
-                self.agents[1].is_game_won = False
-                self.agents[0].is_game_drawn = True
-                self.agents[1].is_game_drawn = True
+                self.agents[0].last_game_result = GameResult.DRAW
+                self.agents[1].last_game_result = GameResult.DRAW
                 return
 
     def log_after_taking(self):
@@ -298,9 +291,7 @@ class Environment:
         if combinations:
             start_timer = time.time()
             # Sets taking_combination to [chip_1, chip_2, ... chip_n]
-            combination = agent.select_taking_action(game_board=self.board,
-                                                     combinations=combinations,
-                                                     last_placed_chip=self.last_placed_chip)
+            combination = agent.select_taking_action(game_board=self.board, combinations=combinations)
             end_timer = time.time()
             self.benchmarks_4.append(end_timer - start_timer)
 
@@ -315,7 +306,8 @@ class Environment:
                                                                      enemy_score=enemy_agent.score,
                                                                      container_chips_count=len(self.container.chips),
                                                                      taking_combination=combination,
-                                                                     last_placed_chip=self.last_placed_chip))
+                                                                     last_placed_chip=self.last_placed_chip,
+                                                                     container=copy.deepcopy(self.container)))
 
             enemy_agent.process_state_changes(changes_type=StateChangeType.TAKING,
                                               changes_data=StateChangeData(is_my_turn=False,
@@ -324,7 +316,8 @@ class Environment:
                                                                            container_chips_count=len(
                                                                                self.container.chips),
                                                                            taking_combination=combination,
-                                                                           last_placed_chip=self.last_placed_chip))
+                                                                           last_placed_chip=self.last_placed_chip,
+                                                                           container=copy.deepcopy(self.container)))
             end_timer = time.time()
             self.benchmarks_5.append(end_timer - start_timer)
             # Log how changed the game after the action
@@ -389,10 +382,12 @@ class Environment:
         agent_0.process_initial_state(initial_data=InitialStateData(game_board=self.board,
                                                                     container_chips_count=len(self.container.chips),
                                                                     is_starting=True,
+                                                                    last_placed_chip=self.last_placed_chip
                                                                     ))
         agent_1.process_initial_state(initial_data=InitialStateData(game_board=self.board,
                                                                     container_chips_count=len(self.container.chips),
                                                                     is_starting=False,
+                                                                    last_placed_chip=self.last_placed_chip
                                                                     ))
         end_timer = time.time()
         self.benchmarks_1.append(end_timer - start_timer)
@@ -424,14 +419,18 @@ class Environment:
                                                                      game_board=self.board,
                                                                      enemy_score=enemy_agent.score,
                                                                      container_chips_count=len(self.container.chips),
-                                                                     placing_action=placing_action))
+                                                                     placing_action=placing_action,
+                                                                     last_placed_chip=self.last_placed_chip,
+                                                                     container=copy.deepcopy(self.container)))
             enemy_agent.process_state_changes(changes_type=StateChangeType.PLACING,
                                               changes_data=StateChangeData(is_my_turn=False,
                                                                            game_board=self.board,
                                                                            enemy_score=agent.score,
                                                                            container_chips_count=len(
                                                                                self.container.chips),
-                                                                           placing_action=placing_action))
+                                                                           placing_action=placing_action,
+                                                                           last_placed_chip=self.last_placed_chip,
+                                                                           container=copy.deepcopy(self.container)))
             end_timer = time.time()
             self.benchmarks_3.append(end_timer - start_timer)
 
