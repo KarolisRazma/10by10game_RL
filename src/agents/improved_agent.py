@@ -1,5 +1,3 @@
-import math
-import time
 from enum import Enum
 
 import src.agents.agent as ag
@@ -10,9 +8,10 @@ import numpy as np
 import random
 
 from src.agents.actions.placing_action import PlaceChipAction
-from src.agents.improved_agent_learning.game_state_closer import GameStateCloser
-from src.utilities.state_changes import StateChangeType, StateChangeData, InitialStateData
-from src.agents.improved_agent_learning.state_info import StateInfo
+from src.agents.improved_agent_learning.improved_agent_action_data import ImprovedAgentActionData
+from src.agents.improved_agent_learning.improved_agent_state_data import ImprovedAgentStateData
+from src.game_components.action_data import ActionData
+from src.game_components.state_data import StateData
 
 
 class Behaviour(Enum):
@@ -53,192 +52,95 @@ class ImprovedAgent(ag.Agent):
         self.behaviour = [Behaviour.EXPLOIT, Behaviour.EXPLORE]
         self.is_improved_exploitation_on = is_improved_exploitation_on
 
-        # Last placed chip value
-        self.my_last_placed_chip_value = None
+        self.this_turn_behaviour = None
+        self.exploit_combination_in_this_turn = None
+        self.is_current_state_closed = False
 
-        self.game_state_closer = GameStateCloser(graph)
-
-        self.bench1 = []  # Placing Explore
-        self.bench2 = []  # Gets PlacingRelationInfo objects list
-        self.bench3 = []  # Gets TakingRelationInfo objects list
-        self.bench4 = []  # Placing exploit optimization
-        self.bench5 = []  # Taking exploit optimization
-        self.bench6 = []  # Placing exploit optimization method get_states_by_placing_actions
-        self.bench7 = []  # Placing exploit optimization method get_best_placing_relation
-        self.bench8 = []  # Taking exploit optimization method get_states_by_taking_actions
-        self.bench9 = []  # Taking exploit optimization method get_best_taking_relation
-        self.bench10 = []  # After Placing processing
-        self.bench11 = []  # After Taking processing
-        self.bench12 = []  # Initial state processing
-        self.bench13 = []  # All placing exploitation time
-        self.bench14 = []  # Exploit placing sort
-        self.bench15 = []  # Exploit placing filter
-        self.bench16 = []  # All taking exploitation time
-        self.bench17 = []  # Exploit taking sort
-        self.bench18 = []  # Exploit taking filter
+    def observe_state(self, state_data: StateData, action_data: ActionData = None):
+        improved_agent_state_data = ImprovedAgentStateData(
+            board_values=state_data.board_values,
+            my_turn=state_data.my_turn,
+            my_score=state_data.my_score,
+            enemy_score=state_data.enemy_score,
+            chips_left=state_data.chips_left,
+            last_placed_chip_list=state_data.last_placed_chip_list,
+            hand_chips_values_list=state_data.hand_chips_values_list,
+            enemy_hand_chips_values_list=state_data.enemy_hand_chips_values_list,
+            container_chips_values_list=state_data.container_chips_values_list,
+            is_initial_state=state_data.is_initial_state
+        )
+        self.last_episode_path.state_data_list.append(improved_agent_state_data)
+        self.current_state_info = improved_agent_state_data
+        if action_data is not None:
+            improved_agent_action_data = ImprovedAgentActionData(
+                row=action_data.row,
+                col=action_data.col,
+                chip_value=action_data.chip_value,
+                has_taking=action_data.has_taking,
+                combination=action_data.combination,
+                fully_explored=self.is_current_state_closed
+            )
+            self.last_episode_path.relation_data_list.append(improved_agent_action_data)
 
     def select_placing_action(self, game_board):
-        return self.get_placing_action(game_board)
+        return self.select_action(game_board)
 
     def select_taking_action(self, game_board, combinations):
-        return self.get_taking_action(combinations)
-
-    def process_state_changes(self, changes_type, changes_data):
-        if changes_type == StateChangeType.PLACING:
-            self.process_state_changes_after_placing(changes_data)
-        elif changes_type == StateChangeType.TAKING:
-            self.process_state_changes_after_taking(changes_data)
-
-    def process_state_changes_after_placing(self, changes_data: StateChangeData):
-        board_values = changes_data.game_board.board_to_chip_values()
-        my_turn = changes_data.is_my_turn
-        my_score = self.score
-        enemy_score = changes_data.enemy_score
-        chips_left = changes_data.container_chips_count
-        placing_action = changes_data.placing_action
-        last_placed_chip = [changes_data.last_placed_chip.row, changes_data.last_placed_chip.col,
-                            changes_data.last_placed_chip.value]
-
-        # Calculating hand chip values and sorting to accending order
-        hand_chips_values = self.get_hand_chips_values_list()
-        if my_turn:
-            hand_chips_values.append(self.my_last_placed_chip_value)
-        sorted_hand_chips_values = sorted(hand_chips_values)
-
-        # Create StateInfo object with next state data
-        next_state_info = StateInfo(board_values=board_values,
-                                    my_turn=my_turn,
-                                    my_score=my_score,
-                                    enemy_score=enemy_score,
-                                    chips_left=chips_left,
-                                    hand_chips_values=sorted_hand_chips_values,
-                                    last_placed_chip=last_placed_chip)
-
-        start_timer = time.time()
-        # Update agent's graph with next board state and placing relation
-        updated_next_state_info, placing_relation_info = \
-            self.graph.create_next_node_and_make_placing_relation(self.current_state_info,
-                                                                  next_state_info, placing_action)
-        end_timer = time.time()
-        self.bench10.append(end_timer - start_timer)
-
-        # Include container in StateInfo
-        updated_next_state_info.container = changes_data.container
-
-        # Append placing relation and next state to path
-        self.last_episode_path.relation_info_list.append(placing_relation_info)
-        self.last_episode_path.state_info_list.append(updated_next_state_info)
-
-        # Update current state
-        self.current_state_info = updated_next_state_info
-
-    def process_state_changes_after_taking(self, changes_data: StateChangeData):
-        board_values = changes_data.game_board.board_to_chip_values()
-        my_turn = changes_data.is_my_turn
-        my_score = self.score
-        enemy_score = changes_data.enemy_score
-        chips_left = changes_data.container_chips_count
-        combination = changes_data.taking_combination
-        last_placed_chip = [changes_data.last_placed_chip.row, changes_data.last_placed_chip.col,
-                            changes_data.last_placed_chip.value]
-
-        # Calculating hand chip values and sorting to accending order
-        hand_chips_values = self.get_hand_chips_values_list()
-        if my_turn:
-            hand_chips_values.append(self.my_last_placed_chip_value)
-        sorted_hand_chips_values = sorted(hand_chips_values)
-
-        # Create StateInfo object with next state data
-        next_state_info = StateInfo(board_values=board_values,
-                                    my_turn=my_turn,
-                                    my_score=my_score,
-                                    enemy_score=enemy_score,
-                                    chips_left=chips_left,
-                                    hand_chips_values=sorted_hand_chips_values,
-                                    last_placed_chip=last_placed_chip)
-
-        start_timer = time.time()
-        # Update agent's graph with next board state and taking relation
-        updated_next_state_info, taking_relation_info = \
-            self.graph.create_next_node_and_make_taking_relation(self.current_state_info, next_state_info, combination)
-        end_timer = time.time()
-        self.bench11.append(end_timer - start_timer)
-
-        # Include container in StateInfo
-        updated_next_state_info.container = changes_data.container
-
-        # Append taking relation and next state to path
-        self.last_episode_path.relation_info_list.append(taking_relation_info)
-        self.last_episode_path.state_info_list.append(updated_next_state_info)
-
-        # Update current state
-        self.current_state_info = updated_next_state_info
-
-    def get_random_action_for_placing(self, game_board):
-        # Loop while action is not selected
-        # fixme can cause problems if board is full
-        start_timer = time.time()
-        while True:
-            random_tile_index = random.randint(0, len(game_board.tiles) - 1)
-            if game_board.is_tile_empty(random_tile_index):
-                tile_row = math.floor(random_tile_index / game_board.border_length)
-                tile_col = random_tile_index % game_board.border_length
-                hand_chip_index = random.randint(0, 1)
-
-                end_timer = time.time()
-                self.bench1.append(end_timer - start_timer)
-
-                self.my_last_placed_chip_value = self.hand_chips[hand_chip_index].value
-                return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
+        # I think, I need to clarify this one:
+        # If behaviour is EXPLORE, it means that we didn't have combination yet,
+        # But if behaviour is EXPLOIT and the game let us choose combination,
+        # Then it means, that we already know what combination we want to exploit.
+        if self.this_turn_behaviour == Behaviour.EXPLORE:
+            return self.do_explore_taking(combinations)
+        else:
+            return self.exploit_combination_in_this_turn
 
     def reset(self):
         super().reset()
         self.last_episode_path.reset()
         self.current_state_info = None
-        self.my_last_placed_chip_value = None
 
     def eval_path_after_episode(self):
         self.path_evaluator.set_path(self.last_episode_path)
         self.path_evaluator.eval_path(self.graph, self.last_game_result)
 
-    def process_initial_state(self, initial_data: InitialStateData):
-        board_values = initial_data.game_board.board_to_chip_values()
+    def get_agent_behaviour(self):
+        # Do random choice(not so random, because according to probabilities) for behaviour
+        return np.random.choice(self.behaviour, 1, p=[self.exploit_rate, self.explore_rate])
 
-        # There is some "maneuver" - if is_starting is True, then it means on Initial State it should be set on False.
-        # This is done for correct moves structure (True -> False -> True ...)
-        is_starting = False if initial_data.is_starting else True
+    @staticmethod
+    def get_best_relation(relations, best_relation):
+        # Get max times_used in 'relations' list
+        get_max_times_used = (max(relations, key=lambda x: x.times_used)).times_used
 
-        container_chips_count = initial_data.container_chips_count
-        hand_chips_values = sorted(self.get_hand_chips_values_list())
-        last_placed_chip = [initial_data.last_placed_chip.row, initial_data.last_placed_chip.col,
-                            initial_data.last_placed_chip.value]
+        # Visited/winrate criteria parameters
+        times_used_criteria = int(get_max_times_used / 3) if int(get_max_times_used / 3) > 0 else 1
+        win_rate_criteria = 0.40
 
-        initial_state = StateInfo(
-            board_values=board_values,
-            my_turn=is_starting,
-            my_score=0,
-            enemy_score=0,
-            chips_left=container_chips_count,
-            is_initial_state=True,
-            hand_chips_values=hand_chips_values,
-            last_placed_chip=last_placed_chip
-        )
+        best_relations = []
+        for relation in relations:
+            relation_win_rate = relation.win_counter / relation.times_used
+            # Check if relation meets the criteria
+            if relation_win_rate >= win_rate_criteria and relation.times_used >= times_used_criteria:
+                best_relations.append(relation)
+        # At least one relation met the criteria
+        if best_relations:
+            return max(best_relations, key=lambda x: float(x.win_counter / x.times_used))
+        return best_relation
 
-        start_timer = time.time()
-        # Add to db
-        initial_state_updated = self.graph.add_initial_game_state(initial_state)
-        end_timer = time.time()
-        self.bench12.append(end_timer - start_timer)
+    @staticmethod
+    def filter_negative_relation_q_values(relations):
+        return [relation for relation in relations if relation.q_value > 0.0]
 
-        self.current_state_info = initial_state_updated
-        self.last_episode_path.state_info_list.append(initial_state_updated)
+    def select_action(self, game_board):
+        relations = self.graph.find_game_state_next_relations(self.current_state_info)
 
-    def get_placing_action(self, game_board):
-        start_timer = time.time()
-        # Gets PlacingRelationInfo objects list
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type=0)
-        end_timer = time.time()
-        self.bench2.append(end_timer - start_timer)
+        if relations:
+            # Check if state is closed
+            if relations[0].fully_explored:
+                self.is_current_state_closed = True
+            else:
+                self.is_current_state_closed = False
 
         # If 'relations' is empty, then agent explore 100%
         if not relations:
@@ -247,7 +149,6 @@ class ImprovedAgent(ag.Agent):
         # Else, change exploration rate accordingly to nodes_length
         else:
             relations_length = len(relations)
-
             explore_rate = float(1 - self.exploit_growth * relations_length)
             exploit_rate = float(1 - explore_rate)
             # If explore rate is negative
@@ -259,213 +160,41 @@ class ImprovedAgent(ag.Agent):
             self.exploit_rate = exploit_rate
 
         # Getting agent's behaviour for this round
-        current_behaviour = self.get_agent_behaviour()
+        self.this_turn_behaviour = self.get_agent_behaviour()
 
-        if current_behaviour == Behaviour.EXPLORE:
+        if self.this_turn_behaviour == Behaviour.EXPLORE:
             return self.do_explore_placing(game_board)
-        elif current_behaviour == Behaviour.EXPLOIT:
-            return self.do_exploit_placing(game_board, relations)
-
-    def get_agent_behaviour(self):
-        # Do random choice(not so random, because according to probabilities) for behaviour
-        return np.random.choice(self.behaviour, 1, p=[self.exploit_rate, self.explore_rate])
+        elif self.this_turn_behaviour == Behaviour.EXPLOIT:
+            return self.do_exploit(game_board, relations)
 
     def do_explore_placing(self, game_board):
         # Choose one action randomly
         return self.get_random_action_for_placing(game_board)
-
-    def do_exploit_placing(self, game_board, relations):
-        exploit_start_timer = time.time()
-
-        start_timer = time.time()
-        # Sort list by q_value in decending order
-        relations.sort(key=lambda x: x.q_value, reverse=True)
-        end_timer = time.time()
-        self.bench14.append(end_timer - start_timer)
-
-        start_timer = time.time()
-        positive_relations = self.filter_negative_relation_q_values(relations)
-        end_timer = time.time()
-        self.bench15.append(end_timer - start_timer)
-
-        # if 'positive_relations' is empty
-        if not positive_relations:
-            return self.do_explore_placing(game_board)
-
-        # Set relation which holds highest q_value
-        best_relation = positive_relations[0]
-
-        # (Can be skipped) Optimization for better exploitation results
-        if self.is_improved_exploitation_on:
-            start_timer = time.time()
-            next_states_info = self.get_states_by_placing_actions(positive_relations)
-            best_relation = self.get_best_placing_relation(next_states_info, best_relation)
-            end_timer = time.time()
-            self.bench4.append(end_timer - start_timer)
-
-        exploit_end_timer = time.time()
-        self.bench13.append(exploit_end_timer - exploit_start_timer)
-
-        self.my_last_placed_chip_value = best_relation.chip_value
-        return PlaceChipAction(best_relation.row, best_relation.col, best_relation.chip_value)
-
-    # THIS IS ONLY FOR IMPROVED EXPLOITATION
-    def get_states_by_placing_actions(self, relations):
-        start_timer = time.time()
-        next_states_info = []
-        # todo verta pagalvoti cia dar imanoma maziau query'iu daryti
-        for relation in relations:
-            info = self.graph.find_next_state_by_placing_relation(self.current_state_info, relation)
-            next_states_info.append(info)
-        end_timer = time.time()
-        self.bench6.append(end_timer - start_timer)
-        return next_states_info
-
-    # THIS IS ONLY FOR IMPROVED EXPLOITATION
-    # todo labai baisus metodas
-    def get_best_placing_relation(self, next_states_info, best_relation):
-        start_timer = time.time()
-        get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
-
-        # Not the field 'times_visited', but win+lose counter
-        get_max_visited = get_max_visited_state.win_counter + get_max_visited_state.lose_counter
-
-        visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
-        win_rate_criteria = 0.50
-        best_states = []
-        for state in next_states_info:
-            wins_plus_loses = state.win_counter + state.lose_counter
-            if wins_plus_loses:
-                state_win_rate = float(state.win_counter / wins_plus_loses)
-                if state_win_rate >= win_rate_criteria and state.times_visited >= visited_criteria:
-                    best_states.append(state)
-        if best_states:
-            next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
-            best_relation = self.graph.find_placing_relation_info(self.current_state_info, next_state)
-            end_timer = time.time()
-            self.bench7.append(end_timer - start_timer)
-            return best_relation
-        else:
-            end_timer = time.time()
-            self.bench7.append(end_timer - start_timer)
-            return best_relation
-
-    def get_taking_action(self, combinations):
-        # Gets TakingRelationInfo objects list
-        start_timer = time.time()
-        relations = self.graph.find_game_state_next_relations(self.current_state_info, rel_type=1)
-        end_timer = time.time()
-        self.bench3.append(end_timer - start_timer)
-
-        # If 'nodes' is empty, then agent explore 100%
-        if not relations:
-            self.explore_rate = float(1)
-            self.exploit_rate = float(0)
-        # Else, change exploration rate accordingly to nodes_length
-        else:
-            relations_length = len(relations)
-
-            explore_rate = float(1 - self.exploit_growth * relations_length)
-            exploit_rate = float(1 - explore_rate)
-            # If explore rate is negative
-            if explore_rate < 0:
-                explore_rate = float(self.explore_minimum)
-                exploit_rate = float(1 - explore_rate)
-
-            self.explore_rate = explore_rate
-            self.exploit_rate = exploit_rate
-
-        # Getting agent's behaviour for this round
-        current_behaviour = self.get_agent_behaviour()
-
-        if current_behaviour == Behaviour.EXPLORE:
-            return self.do_explore_taking(combinations)
-        elif current_behaviour == Behaviour.EXPLOIT:
-            return self.do_exploit_taking(relations, combinations)
 
     @staticmethod
     def do_explore_taking(combinations):
         # Choose one combination randomly
         return combinations[random.randint(0, len(combinations) - 1)]
 
-    def do_exploit_taking(self, relations, combinations):
-        exploit_start_timer = time.time()
-
-        start_timer = time.time()
+    def do_exploit(self, game_board, relations):
         # Sort list by q_value in decending order
         relations.sort(key=lambda x: x.q_value, reverse=True)
-        end_timer = time.time()
-        self.bench17.append(end_timer - start_timer)
 
-        start_timer = time.time()
         positive_relations = self.filter_negative_relation_q_values(relations)
-        end_timer = time.time()
-        self.bench18.append(end_timer - start_timer)
 
         # if 'positive_relations' is empty
         if not positive_relations:
-            return self.do_explore_taking(combinations)
+            self.this_turn_behaviour = Behaviour.EXPLORE
+            return self.do_explore_placing(game_board)
 
         # Set relation which holds highest q_value
         best_relation = positive_relations[0]
 
         # (Can be skipped) Optimization for better exploitation results
         if self.is_improved_exploitation_on:
-            start_timer = time.time()
-            next_states_info = self.get_states_by_taking_actions(positive_relations)
-            best_relation = self.get_best_taking_relation(next_states_info, best_relation)
-            end_timer = time.time()
-            self.bench5.append(end_timer - start_timer)
+            best_relation = self.get_best_relation(relations, best_relation)
 
-        exploit_end_timer = time.time()
-        self.bench16.append(exploit_end_timer - exploit_start_timer)
+        # Can be an empty array, if relation only has placing action
+        self.exploit_combination_in_this_turn = best_relation.combination
 
-        return best_relation.combination
-
-    # THIS IS ONLY FOR IMPROVED EXPLOITATION
-    def get_states_by_taking_actions(self, relations):
-        start_timer = time.time()
-        next_states_info = []
-        for relation in relations:
-            info = self.graph.find_next_state_by_taking_relation(self.current_state_info, relation)
-            next_states_info.append(info)
-        end_timer = time.time()
-        self.bench8.append(end_timer - start_timer)
-        return next_states_info
-
-    # todo baisus metodas
-    def get_best_taking_relation(self, next_states_info, best_relation):
-        start_timer = time.time()
-        get_max_visited_state = max(next_states_info, key=lambda x: x.times_visited)
-
-        # Not the field 'times_visited', but win+lose counter
-        get_max_visited = get_max_visited_state.win_counter + get_max_visited_state.lose_counter
-
-        visited_criteria = int(get_max_visited / 3) if int(get_max_visited / 3) > 0 else 1
-        win_rate_criteria = 0.50
-        best_states = []
-        for state in next_states_info:
-            wins_plus_loses = state.win_counter + state.lose_counter
-            if wins_plus_loses:
-                state_win_rate = float(state.win_counter / wins_plus_loses)
-                if state_win_rate >= win_rate_criteria and wins_plus_loses >= visited_criteria:
-                    best_states.append(state)
-        if best_states:
-            next_state = max(best_states, key=lambda x: float(x.win_counter / (x.win_counter + x.lose_counter)))
-            best_relation = self.graph.find_taking_relation_info(self.current_state_info, next_state)
-            end_timer = time.time()
-            self.bench9.append(end_timer - start_timer)
-            return best_relation
-        else:
-            end_timer = time.time()
-            self.bench9.append(end_timer - start_timer)
-            return best_relation
-
-    @staticmethod
-    def filter_negative_relation_q_values(relations):
-        return [relation for relation in relations if relation.q_value > 0.0]
-
-    def begin_state_closing(self):
-        # Assign previuos game path
-        self.game_state_closer.game_path = self.last_episode_path
-        self.game_state_closer.do_state_closing()
+        return PlaceChipAction(best_relation.row, best_relation.col, best_relation.chip_value)

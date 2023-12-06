@@ -1,4 +1,9 @@
+import math
+import random
 from abc import ABC, abstractmethod
+from src.agents.actions.placing_action import PlaceChipAction
+from src.game_components.action_data import ActionData
+from src.game_components.state_data import StateData
 
 
 class Agent(ABC):
@@ -32,14 +37,21 @@ class Agent(ABC):
         return chip
 
     def get_hand_chips_values_list(self):
-        return [chip.value for chip in self.hand_chips]
+        return sorted([chip.value for chip in self.hand_chips])
+
+    def get_random_action_for_placing(self, game_board):
+        # Loop while action is not selected
+        # fixme can cause problems if board is full
+        while True:
+            random_tile_index = random.randint(0, len(game_board.tiles) - 1)
+            if game_board.is_tile_empty(random_tile_index):
+                tile_row = math.floor(random_tile_index / game_board.border_length)
+                tile_col = random_tile_index % game_board.border_length
+                hand_chip_index = random.randint(0, 1)
+                return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
 
     @abstractmethod
-    def process_initial_state(self, initial_data):
-        pass
-
-    @abstractmethod
-    def process_state_changes(self, changes_type, changes_data):
+    def observe_state(self, state_data: StateData, action_data: ActionData =None):
         pass
 
     @abstractmethod

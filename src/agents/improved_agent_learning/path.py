@@ -1,13 +1,12 @@
-from src.agents.improved_agent_learning.state_info import StateInfo
+from src.agents.improved_agent_learning.improved_agent_action_data import ImprovedAgentActionData
+from src.agents.improved_agent_learning.improved_agent_state_data import ImprovedAgentStateData
 
 
 class Path:
     def __init__(self):
-        # List of StateInfo objects
-        self.state_info_list: list[StateInfo] = []
-        # List of Placing/Taking RelationInfo objects
-        self.relation_info_list = []
+        self.state_data_list: list[ImprovedAgentStateData] = []
+        self.relation_data_list: list[ImprovedAgentActionData] = []
 
     def reset(self):
-        self.state_info_list = []
-        self.relation_info_list = []
+        self.state_data_list = []
+        self.relation_data_list = []

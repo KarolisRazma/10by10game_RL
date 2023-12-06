@@ -1,7 +1,6 @@
 # 3x3 board constants
 
 # container constants
-container_capacity = 12
 chips_types = [1, 2, 3]
 chips_per_type = 4
 

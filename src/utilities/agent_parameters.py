@@ -14,7 +14,7 @@ class ImprovedAgent1Parameters:
 # Improved Agent 2
 class ImprovedAgent2Parameters:
     name = "ImprovedAgent2"
-    database = "for-testing2"
+    database = "for-testing1"
     discount_rate = 0.9
     learning_rate = 0.9
     exploit_growth = 0.06

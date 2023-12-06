@@ -1,50 +1,49 @@
+from src.agents.improved_agent_learning.graph import Graph
+from src.agents.improved_agent_learning.learning import RLearning
+from src.agents.improved_agent_learning.path import Path
 from src.game_components.game_result import GameResult
 
 
 class PathEvaluator:
-    # field path stores Path object
-    def __init__(self, learning):
-        self.path = None
-        self.learning = learning
 
-        self.bench1 = []    # Update counters in DB
-        self.bench2 = []    # Calculate Q-Value
-        self.bench3 = []    # Update Q-Value in DB
+    def __init__(self, learning: RLearning):
+        # noinspection PyTypeChecker
+        self.path: Path = None
+        self.learning = learning
 
     # argument path is Path object
     def set_path(self, path):
         self.path = path
 
-    def eval_path(self, graph, last_game_result):
-        # Reverse path (states and relations)
-        self.path.state_info_list.reverse()
-        self.path.relation_info_list.reverse()
+    def eval_path(self, graph: Graph, last_game_result: GameResult):
 
-        # Make relations the same length as states list
-        self.path.relation_info_list.append(None)
+        # Process final state
+        if not self.path.relation_data_list[-1].fully_explored:
+            final_state_data = graph.find_or_create_final_state(self.path.state_data_list[-1])
+            fixed_q_value = self.learning.final_state_reward(last_game_result)
+
+        # Remove final state from the list
+        self.path.state_data_list.pop()
+
+        # Reverse path (states and relations)
+        self.path.state_data_list.reverse()
+        self.path.relation_data_list.reverse()
 
         is_first_step = True
-        for (state_info, relation_info) in zip(self.path.state_info_list, self.path.relation_info_list):
-            # Only evaluate if state is not closed (already decided win)
-            if not state_info.is_closed:
-                # Increment counters
-                state_info.times_visited += 1
-                if last_game_result == GameResult.WON:
-                    state_info.win_counter += 1
-                elif last_game_result == GameResult.LOST:
-                    state_info.lose_counter += 1
-                elif last_game_result == GameResult.DRAW:
-                    state_info.draw_counter += 1
-
-                if relation_info is not None:
-                    relation_info.q_value = self.learning.calc_new_q_value(graph=graph, state_info=state_info,
-                                                                           relation_info=relation_info,
-                                                                           is_final_state=is_first_step,
-                                                                           last_game_result=last_game_result)
-                    graph.update_q_value_and_counters(relation_info, state_info)
-                else:
-                    graph.update_counters(state_info)
-
-                # Set flag to false
+        for (previous_state_data, relation_data) in zip(self.path.state_data_list, self.path.relation_data_list):
+            # Only evaluate if states is not closed (or fully explored, just in other words)
+            if not relation_data.fully_explored:
+                # Handle previous->final state
                 if is_first_step:
+                    relation_data.q_value = fixed_q_value
+                    graph.find_or_create_previous_state_and_make_next_relation(previous_state_data, relation_data,
+                                                                               final_state_data, last_game_result)
+                    current_state_data = previous_state_data
                     is_first_step = False
+                    continue
+
+                # Handle remaining states
+                relation_data.q_value = self.learning.calc_new_q_value(graph, current_state_data, relation_data)
+                graph.find_or_create_previous_state_and_make_next_relation(previous_state_data, relation_data,
+                                                                           current_state_data, last_game_result)
+                current_state_data = previous_state_data

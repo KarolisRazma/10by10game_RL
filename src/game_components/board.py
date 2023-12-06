@@ -4,11 +4,11 @@ import src.game_components.chip as cp
 
 
 class Board:
-    def __init__(self, length):
+    def __init__(self, border_length):
         self.tiles = []
         # Chip(0) - chip which value - zero, is assumed to be viewed as empty space on the board
         self.chips = []
-        self.border_length = length
+        self.border_length = border_length
         self.board_size = self.border_length * self.border_length
         self.create_board()
 
@@ -85,7 +85,9 @@ class Board:
 
     def from_board_values_to_board(self, board_values):
         for i in range(self.board_size):
-            if board_values[i] == 1:
+            if board_values[i] == 0:
+                chip = cp.Chip(0)
+            elif board_values[i] == 1:
                 chip = cp.Chip(1)
             elif board_values[i] == 2:
                 chip = cp.Chip(2)
