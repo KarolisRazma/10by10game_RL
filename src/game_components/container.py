@@ -1,3 +1,5 @@
+import random
+
 import src.game_components.chip as c
 
 
@@ -25,6 +27,15 @@ class Container:
             del self.chips[index]       # then remove it from container
             return chip                 # return the removed chip
 
+    # Use with care
+    def draw_chip_with_exact_value(self, value: int):
+        for chip in self.chips:
+            if chip.value == value:
+                self.chips.remove(chip)
+                return chip
+        # If no chip found
+        return None
+
     def get_chips_values_list(self):
         return sorted([chip.value for chip in self.chips])
 
@@ -32,6 +43,9 @@ class Container:
         self.chips = []
         for value in chips_values:
             self.chips.append(c.Chip(value))
+
+    def shuffle_container(self):
+        random.shuffle(self.chips)
 
     def clear(self):
         self.chips = []

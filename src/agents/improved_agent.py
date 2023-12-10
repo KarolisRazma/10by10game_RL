@@ -8,6 +8,7 @@ import numpy as np
 import random
 
 from src.agents.actions.placing_action import PlaceChipAction
+from src.agents.improved_agent_learning.graph import Graph
 from src.agents.improved_agent_learning.improved_agent_action_data import ImprovedAgentActionData
 from src.agents.improved_agent_learning.improved_agent_state_data import ImprovedAgentStateData
 from src.game_components.action_data import ActionData
@@ -25,12 +26,12 @@ class ImprovedAgent(ag.Agent):
     # @param learning_algorithm     --> class RLearning object
 
     def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum,
-                 is_improved_exploitation_on=False):
+                 is_improved_exploitation_on=False, state_closure_depth=1, exploit_to_closed_state_rate=0.0):
         # Init Agent superclass
         super().__init__(name)
 
         # Graph stored in Neo4j
-        self.graph = graph
+        self.graph: Graph = graph
 
         # Path evaluation field
         self.path_evaluator = pe.PathEvaluator(learning_algorithm)
@@ -47,6 +48,8 @@ class ImprovedAgent(ag.Agent):
         self.exploit_rate = float(1 - self.explore_rate)
         self.explore_minimum = explore_minimum
         self.exploit_growth = exploit_growth
+        # This parameter sets the rate at which the relationship with the 'to_closed_state' property is used.
+        self.exploit_to_closed_state_rate = exploit_to_closed_state_rate
 
         # List for agent behaviour selection
         self.behaviour = [Behaviour.EXPLOIT, Behaviour.EXPLORE]
@@ -54,7 +57,10 @@ class ImprovedAgent(ag.Agent):
 
         self.this_turn_behaviour = None
         self.exploit_combination_in_this_turn = None
-        self.is_current_state_closed = False
+
+        # State closure parameters
+        # defined here because PathEvaluator also uses this parameter
+        self.state_closure_depth = state_closure_depth
 
     def observe_state(self, state_data: StateData, action_data: ActionData = None):
         improved_agent_state_data = ImprovedAgentStateData(
@@ -67,8 +73,12 @@ class ImprovedAgent(ag.Agent):
             hand_chips_values_list=state_data.hand_chips_values_list,
             enemy_hand_chips_values_list=state_data.enemy_hand_chips_values_list,
             container_chips_values_list=state_data.container_chips_values_list,
-            is_initial_state=state_data.is_initial_state
+            is_initial=state_data.is_initial,
+            is_final=state_data.is_final
         )
+        if state_data.is_final:
+            improved_agent_state_data.game_result = self.last_game_result
+
         self.last_episode_path.state_data_list.append(improved_agent_state_data)
         self.current_state_info = improved_agent_state_data
         if action_data is not None:
@@ -78,7 +88,6 @@ class ImprovedAgent(ag.Agent):
                 chip_value=action_data.chip_value,
                 has_taking=action_data.has_taking,
                 combination=action_data.combination,
-                fully_explored=self.is_current_state_closed
             )
             self.last_episode_path.relation_data_list.append(improved_agent_action_data)
 
@@ -102,7 +111,7 @@ class ImprovedAgent(ag.Agent):
 
     def eval_path_after_episode(self):
         self.path_evaluator.set_path(self.last_episode_path)
-        self.path_evaluator.eval_path(self.graph, self.last_game_result)
+        self.path_evaluator.eval_path(self.graph, self.last_game_result, self.state_closure_depth)
 
     def get_agent_behaviour(self):
         # Do random choice(not so random, because according to probabilities) for behaviour
@@ -135,12 +144,18 @@ class ImprovedAgent(ag.Agent):
     def select_action(self, game_board):
         relations = self.graph.find_game_state_next_relations(self.current_state_info)
 
-        if relations:
-            # Check if state is closed
-            if relations[0].fully_explored:
-                self.is_current_state_closed = True
-            else:
-                self.is_current_state_closed = False
+        # Closed state 'select_action' execution
+        if self.is_state_closed(relations):
+            return self.do_exploit_closed_state(relations[0])
+
+        # Check if any relations leads to closed state
+        relations_to_closed_state = self.filter_relations_by_to_closed_state(relations)
+        if relations_to_closed_state:
+            standart_exploit_explore_rate = float(1 - self.exploit_to_closed_state_rate)
+            is_using_to_closed_relation =\
+                np.random.choice([0, 1], 1, p=[standart_exploit_explore_rate, self.exploit_to_closed_state_rate])
+            if is_using_to_closed_relation:
+                return self.do_exploit_pre_closed_state(relations_to_closed_state)
 
         # If 'relations' is empty, then agent explore 100%
         if not relations:
@@ -198,3 +213,34 @@ class ImprovedAgent(ag.Agent):
         self.exploit_combination_in_this_turn = best_relation.combination
 
         return PlaceChipAction(best_relation.row, best_relation.col, best_relation.chip_value)
+
+    @staticmethod
+    def is_state_closed(relations):
+        if relations:
+            # Check if relation is from closed state
+            if relations[0].from_closed_state:
+                return True
+            return False
+
+    def do_exploit_closed_state(self, relation):
+        # Set current state to be closed = True
+        self.last_episode_path.state_data_list[-1].is_closed = True
+        # Set behaviour to EXPLOIT (there's no exploring to do in closed state)
+        self.this_turn_behaviour = Behaviour.EXPLOIT
+        # Can be an empty array, if relation only has placing action
+        self.exploit_combination_in_this_turn = relation.combination
+        return PlaceChipAction(relation.row, relation.col, relation.chip_value)
+
+    @staticmethod
+    def filter_relations_by_to_closed_state(relations):
+        return [relation for relation in relations if relation.to_closed_state]
+
+    # This method exploits relation with property 'to_closed_state' == True
+    def do_exploit_pre_closed_state(self, relations):
+        self.this_turn_behaviour = Behaviour.EXPLOIT
+
+        chosen_relation = self.get_best_relation(relations, relations[0])
+
+        self.exploit_combination_in_this_turn = chosen_relation.combination
+
+        return PlaceChipAction(chosen_relation.row, chosen_relation.col, chosen_relation.chip_value)

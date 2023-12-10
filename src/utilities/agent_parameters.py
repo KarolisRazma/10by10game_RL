@@ -9,6 +9,8 @@ class ImprovedAgent1Parameters:
     exploit_growth = 0.06
     explore_minimum = 0.10
     is_improved_exploitation_on = True
+    state_closure_depth = 5
+    exploit_to_closed_state_rate = 0.75
 
 
 # Improved Agent 2
@@ -20,3 +22,5 @@ class ImprovedAgent2Parameters:
     exploit_growth = 0.06
     explore_minimum = 0.10
     is_improved_exploitation_on = True
+    state_closure_depth = 1
+    exploit_to_closed_state_rate = 0.75

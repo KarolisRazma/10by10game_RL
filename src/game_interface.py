@@ -11,7 +11,7 @@ import src.utilities.constants3x3 as c3x3
 import src.utilities.gi_constants as GI_CONSTANTS
 from src.game_components.board import Board
 from src.game_components.container import Container
-# from src.game_state_closure_handler import GameStateClosureHandler
+from src.game_state_closure_handler import GameStateClosureHandler
 from src.utilities.logger import Logger
 from src.utilities.agent_parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters
 from src.agents.random_walker_agent import RandomWalkerAgent
@@ -29,6 +29,8 @@ class GameInterface:
                                        game_logger=Logger("game_logger", "game_logs.log")
                                        )
 
+        self.game_state_closure_handler = GameStateClosureHandler()
+
         # Agents creation
         self.random_walker_agent_1 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_1)
         self.random_walker_agent_2 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_2)
@@ -42,6 +44,9 @@ class GameInterface:
                                               explore_minimum=ImprovedAgent1Parameters.explore_minimum,
                                               is_improved_exploitation_on=
                                               ImprovedAgent1Parameters.is_improved_exploitation_on,
+                                              state_closure_depth=ImprovedAgent1Parameters.state_closure_depth,
+                                              exploit_to_closed_state_rate=
+                                              ImprovedAgent1Parameters.exploit_to_closed_state_rate,
                                               )
 
         self.improved_agent_2 = ImprovedAgent(name=ImprovedAgent2Parameters.name,
@@ -52,6 +57,9 @@ class GameInterface:
                                               explore_minimum=ImprovedAgent2Parameters.explore_minimum,
                                               is_improved_exploitation_on=
                                               ImprovedAgent2Parameters.is_improved_exploitation_on,
+                                              state_closure_depth=ImprovedAgent2Parameters.state_closure_depth,
+                                              exploit_to_closed_state_rate=
+                                              ImprovedAgent2Parameters.exploit_to_closed_state_rate,
                                               )
 
         # Initial options list
@@ -187,8 +195,11 @@ class GameInterface:
                 self.environment.start_episode()
                 playing_timer_end = time.time()
                 benchmarks_playing.append(playing_timer_end - playing_timer_start)
-                evaluation_timer_start = time.time()
 
+                # Do game_path copy
+                game_path_copy = self.improved_agent_1.last_episode_path.copy()
+
+                evaluation_timer_start = time.time()
                 # Evaluate ImprovedAgent path
                 if isinstance(self.environment.agents[0], ImprovedAgent):
                     agent = self.environment.agents[0]
@@ -201,16 +212,11 @@ class GameInterface:
                 evaluation_timer_end = time.time()
                 benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
 
-                # self.game_state_closure_handler.set_target_agent(self.improved_agent_1)
-                # self.game_state_closure_handler.set_game_path(self.improved_agent_1.last_episode_path)
-                # self.game_state_closure_handler.run_custom_env()
+                self.game_state_closure_handler.set_target_agent(self.improved_agent_1)
+                self.game_state_closure_handler.set_depth(self.improved_agent_1.state_closure_depth)
+                self.game_state_closure_handler.set_game_path(game_path_copy)
 
-                # Get the agent, who have won the game
-                # winner_agent = self.environment.agents[0] \
-                #     if self.environment.agents[0].last_game_result == GameResult.WON else self.environment.agents[1]
-                #
-                # if isinstance(winner_agent, ImprovedAgent):
-                #     winner_agent.begin_state_closing()
+                self.game_state_closure_handler.start_closure()
 
                 # Log wins/loses/draws
                 self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'

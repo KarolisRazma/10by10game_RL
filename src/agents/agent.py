@@ -3,6 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from src.agents.actions.placing_action import PlaceChipAction
 from src.game_components.action_data import ActionData
+from src.game_components.board import Board
 from src.game_components.state_data import StateData
 
 
@@ -49,6 +50,24 @@ class Agent(ABC):
                 tile_col = random_tile_index % game_board.border_length
                 hand_chip_index = random.randint(0, 1)
                 return PlaceChipAction(tile_row, tile_col, self.hand_chips[hand_chip_index].value)
+
+    def generate_actions_from_position(self, game_board: Board):
+        actions_list = []
+        for tile_index in range(len(game_board.tiles)):
+            if game_board.is_tile_empty(tile_index):
+                actions_list.append(PlaceChipAction(
+                    row=int(tile_index / game_board.border_length),
+                    col=tile_index % game_board.border_length,
+                    value=self.hand_chips[0].value
+                ))
+                # Do not make duplicates
+                if self.hand_chips[0].value != self.hand_chips[1].value:
+                    actions_list.append(PlaceChipAction(
+                        row=int(tile_index / game_board.border_length),
+                        col=tile_index % game_board.border_length,
+                        value=self.hand_chips[1].value
+                    ))
+        return actions_list
 
     @abstractmethod
     def observe_state(self, state_data: StateData, action_data: ActionData =None):

@@ -55,7 +55,11 @@ class Board:
 
     def remove_chip(self, index):
         if index < self.board_size:
+            removed_chip = self.chips[index]
+            removed_chip.row = -1
+            removed_chip.col = -1
             self.chips[index] = cp.Chip(0)
+            return removed_chip
 
     def is_tile_empty(self, index):
         if index < self.board_size:

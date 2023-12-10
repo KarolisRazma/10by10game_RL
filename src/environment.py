@@ -144,7 +144,11 @@ class Environment:
         updated_combinations = []
         for combination in combinations:
             if chip_placed in combination:
-                updated_combinations.append(combination)
+                # Create new chip objects, if combination is valid
+                combination_copy = []
+                for chip in combination:
+                    combination_copy.append(Chip(chip.value, chip.row, chip.col))
+                updated_combinations.append(combination_copy)
         return updated_combinations
 
     def find_collectable_chips(self, indexes_start, indexes_end, index_growth):
@@ -303,15 +307,15 @@ class Environment:
 
             # Return to container
             if tile.color == Color.RED:
-                self.container.chips.append(chip)
-                self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                removed_chip = self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                self.container.chips.append(removed_chip)
 
             # Take a chip from board
             # And collect one more from the container
             if tile.color == Color.BLUE:
                 # From board
-                self.board.remove_chip(chip.row * self.board.border_length + chip.col)
-                agent.captured_chips.append(chip)
+                removed_chip = self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                agent.captured_chips.append(removed_chip)
                 agent.score += 1
 
                 # If container is not empty
@@ -322,14 +326,22 @@ class Environment:
             # Collect chip normally
             if tile.color == Color.WHITE:
                 # From board
-                self.board.remove_chip(chip.row * self.board.border_length + chip.col)
-                agent.captured_chips.append(chip)
+                removed_chip = self.board.remove_chip(chip.row * self.board.border_length + chip.col)
+                agent.captured_chips.append(removed_chip)
                 agent.score += 1
 
     def round_ending(self, agent, enemy_agent):
         # Draw new chip from the container (check if container is not empty)
         if len(self.container.chips) > 0:
             self.from_container_to_agent(agent)
+
+        # In the end of the round, check for end game conditions
+        end_game_flag = self.is_endgame()
+        if end_game_flag > 0:
+            self.deal_with_endgame(end_game_flag)
+            is_final = True
+        else:
+            is_final = False
 
         action_data = ActionData(
             row=self.last_placed_chip.row,
@@ -341,7 +353,7 @@ class Environment:
         agent.observe_state(
             state_data=StateData(
                 board_values=self.board.board_to_chip_values(),
-                my_turn=True,
+                my_turn=False,
                 my_score=agent.score,
                 enemy_score=enemy_agent.score,
                 chips_left=len(self.container.chips),
@@ -350,13 +362,14 @@ class Environment:
                 hand_chips_values_list=agent.get_hand_chips_values_list(),
                 enemy_hand_chips_values_list=enemy_agent.get_hand_chips_values_list(),
                 container_chips_values_list=self.container.get_chips_values_list(),
+                is_final=is_final,
             ),
             action_data=action_data
         )
         enemy_agent.observe_state(
             state_data=StateData(
                 board_values=self.board.board_to_chip_values(),
-                my_turn=False,
+                my_turn=True,
                 my_score=enemy_agent.score,
                 enemy_score=agent.score,
                 chips_left=len(self.container.chips),
@@ -365,6 +378,7 @@ class Environment:
                 hand_chips_values_list=enemy_agent.get_hand_chips_values_list(),
                 enemy_hand_chips_values_list=agent.get_hand_chips_values_list(),
                 container_chips_values_list=self.container.get_chips_values_list(),
+                is_final=is_final,
             ),
             action_data=action_data
         )
@@ -372,12 +386,7 @@ class Environment:
         # Reset has_taking after round
         self.has_taking_action = False
 
-        # In the end of the round, check for end game conditions
-        end_game_flag = self.is_endgame()
-        if end_game_flag > 0:
-            self.deal_with_endgame(end_game_flag)
-            return True
-        return False
+        return is_final
 
     def handle_initial_state_observing(self, first_agent, second_agent):
         first_agent.observe_state(state_data=StateData(
@@ -390,7 +399,8 @@ class Environment:
             hand_chips_values_list=first_agent.get_hand_chips_values_list(),
             enemy_hand_chips_values_list=second_agent.get_hand_chips_values_list(),
             container_chips_values_list=self.container.get_chips_values_list(),
-            is_initial_state=True
+            is_initial=True,
+            is_final=False
         ))
         second_agent.observe_state(state_data=StateData(
             board_values=self.board.board_to_chip_values(),
@@ -402,7 +412,8 @@ class Environment:
             hand_chips_values_list=second_agent.get_hand_chips_values_list(),
             enemy_hand_chips_values_list=first_agent.get_hand_chips_values_list(),
             container_chips_values_list=self.container.get_chips_values_list(),
-            is_initial_state=True
+            is_initial=True,
+            is_final=False
         ))
 
     def start_episode(self):

@@ -10,3 +10,11 @@ class Path:
     def reset(self):
         self.state_data_list = []
         self.relation_data_list = []
+
+    def copy(self):
+        path_copy = Path()
+        for state_data in self.state_data_list:
+            path_copy.state_data_list.append(state_data.copy())
+        for relation_data in self.relation_data_list:
+            path_copy.relation_data_list.append(relation_data.copy())
+        return path_copy
