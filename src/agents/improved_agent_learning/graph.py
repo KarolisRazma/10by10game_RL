@@ -180,7 +180,12 @@ class Graph:
             "combination": combination_integer_list,
             "from_closed_state": True
         }
-        self.session.run(QUERIES.FIND_OR_CREATE_NEXT_GAME_STATE_AND_MAKE_REL, **params)
+        result = self.session.run(QUERIES.FIND_OR_CREATE_NEXT_GAME_STATE_AND_MAKE_REL, **params)
+        record = result.single()
+        # If property do not exist
+        if record['next.is_closed'] is None:
+            return False
+        return record['next.is_closed']
 
     def close_game_state(self, state_data: ImprovedAgentStateData):
         params = {
@@ -198,6 +203,33 @@ class Graph:
             "is_closed": state_data.is_closed
         }
         self.session.run(QUERIES.CLOSE_GAME_STATE, **params)
+
+    def remove_relation(self, state_data: ImprovedAgentStateData, relation_data: ImprovedAgentActionData):
+        combination_integer_list = []
+        for chip in relation_data.combination:
+            combination_integer_list.append(chip.row)
+            combination_integer_list.append(chip.col)
+            combination_integer_list.append(chip.value)
+
+        params = {
+            "board_values": state_data.board_values,
+            "my_turn": state_data.my_turn,
+            "my_score": state_data.my_score,
+            "enemy_score": state_data.enemy_score,
+            "chips_left": state_data.chips_left,
+            "last_placed_chip": state_data.last_placed_chip_list,
+            "hand_chips_values": state_data.hand_chips_values_list,
+            "enemy_hand_chips_values": state_data.enemy_hand_chips_values_list,
+            "container_chips_values": state_data.container_chips_values_list,
+            "is_initial": state_data.is_initial,
+            "is_final": state_data.is_final,
+            "row": relation_data.row,
+            "col": relation_data.col,
+            "chip_value": relation_data.chip_value,
+            "has_taking": relation_data.has_taking,
+            "combination": combination_integer_list,
+        }
+        self.session.run(QUERIES.REMOVE_RELATION, **params)
 
     @staticmethod
     def make_improved_agent_action_data_from_record(relation_properties):

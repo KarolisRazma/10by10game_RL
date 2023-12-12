@@ -190,6 +190,7 @@ FIND_OR_CREATE_NEXT_GAME_STATE_AND_MAKE_REL = \
         [rel:NEXT {row: $row, col: $col, chip_value: $chip_value, has_taking: $has_taking, combination: $combination}]
         ->(next)
         SET rel.from_closed_state = $from_closed_state
+        RETURN next.is_closed
     """
 
 CLOSE_GAME_STATE = \
@@ -208,4 +209,24 @@ CLOSE_GAME_STATE = \
         container_chips_values: $container_chips_values
         })
         SET g.is_closed = $is_closed
+    """
+
+REMOVE_RELATION = \
+    """
+        OPTIONAL MATCH (g:GameState {
+        board_values: $board_values,
+        my_turn: $my_turn,
+        my_score: $my_score,
+        enemy_score: $enemy_score,
+        chips_left: $chips_left,
+        is_initial: $is_initial,
+        is_final: $is_final,
+        last_placed_chip: $last_placed_chip,
+        hand_chips_values: $hand_chips_values,
+        enemy_hand_chips_values: $enemy_hand_chips_values,
+        container_chips_values: $container_chips_values
+        })
+        -[r:NEXT {row: $row, col: $col, chip_value: $chip_value, has_taking: $has_taking, combination: $combination}]
+        ->(:GameState)
+        DELETE r
     """

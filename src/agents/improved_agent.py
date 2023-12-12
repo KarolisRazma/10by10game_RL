@@ -58,10 +58,6 @@ class ImprovedAgent(ag.Agent):
         self.this_turn_behaviour = None
         self.exploit_combination_in_this_turn = None
 
-        # State closure parameters
-        # defined here because PathEvaluator also uses this parameter
-        self.state_closure_depth = state_closure_depth
-
     def observe_state(self, state_data: StateData, action_data: ActionData = None):
         improved_agent_state_data = ImprovedAgentStateData(
             board_values=state_data.board_values,
@@ -109,9 +105,9 @@ class ImprovedAgent(ag.Agent):
         self.last_episode_path.reset()
         self.current_state_info = None
 
-    def eval_path_after_episode(self):
+    def eval_path_after_episode(self, state_closure_depth):
         self.path_evaluator.set_path(self.last_episode_path)
-        self.path_evaluator.eval_path(self.graph, self.last_game_result, self.state_closure_depth)
+        self.path_evaluator.eval_path(self.graph, self.last_game_result, state_closure_depth)
 
     def get_agent_behaviour(self):
         # Do random choice(not so random, because according to probabilities) for behaviour

@@ -12,6 +12,7 @@ import src.utilities.gi_constants as GI_CONSTANTS
 from src.game_components.board import Board
 from src.game_components.container import Container
 from src.game_state_closure_handler import GameStateClosureHandler
+from src.utilities.closure_handler_parameters import ClosureHandlerParameters
 from src.utilities.logger import Logger
 from src.utilities.agent_parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters
 from src.agents.random_walker_agent import RandomWalkerAgent
@@ -29,7 +30,12 @@ class GameInterface:
                                        game_logger=Logger("game_logger", "game_logs.log")
                                        )
 
-        self.game_state_closure_handler = GameStateClosureHandler()
+        self.game_state_closure_handler = GameStateClosureHandler(
+            lowest_path_len_to_start_closure=ClosureHandlerParameters.lowest_path_len_to_start_closure,
+            depth_in_interval_from_7_to_8=ClosureHandlerParameters.depth_in_interval_from_7_to_8,
+            depth_in_interval_from_9_to_9=ClosureHandlerParameters.depth_in_interval_from_9_to_9,
+            depth_in_interval_from_10=ClosureHandlerParameters.depth_in_interval_from_10
+        )
 
         # Agents creation
         self.random_walker_agent_1 = RandomWalkerAgent(GI_CONSTANTS.RANDOM_WALKER_1)
@@ -44,7 +50,6 @@ class GameInterface:
                                               explore_minimum=ImprovedAgent1Parameters.explore_minimum,
                                               is_improved_exploitation_on=
                                               ImprovedAgent1Parameters.is_improved_exploitation_on,
-                                              state_closure_depth=ImprovedAgent1Parameters.state_closure_depth,
                                               exploit_to_closed_state_rate=
                                               ImprovedAgent1Parameters.exploit_to_closed_state_rate,
                                               )
@@ -57,7 +62,6 @@ class GameInterface:
                                               explore_minimum=ImprovedAgent2Parameters.explore_minimum,
                                               is_improved_exploitation_on=
                                               ImprovedAgent2Parameters.is_improved_exploitation_on,
-                                              state_closure_depth=ImprovedAgent2Parameters.state_closure_depth,
                                               exploit_to_closed_state_rate=
                                               ImprovedAgent2Parameters.exploit_to_closed_state_rate,
                                               )
@@ -178,7 +182,6 @@ class GameInterface:
             benchmarks_playing = []
             benchmarks_evaluation = []
             do_benchmarking_counter = 1
-
             start = time.time()
             for i in range(episodes):
 
@@ -199,23 +202,26 @@ class GameInterface:
                 # Do game_path copy
                 game_path_copy = self.improved_agent_1.last_episode_path.copy()
 
+                # Calculate depth for closure handler
+                dynamic_state_closure_depth = self.game_state_closure_handler.calculate_depth(
+                    len(game_path_copy.state_data_list)
+                )
+
                 evaluation_timer_start = time.time()
                 # Evaluate ImprovedAgent path
                 if isinstance(self.environment.agents[0], ImprovedAgent):
                     agent = self.environment.agents[0]
-                    agent.eval_path_after_episode()
+                    agent.eval_path_after_episode(dynamic_state_closure_depth)
 
                 # Evaluate ImprovedAgent path
                 if isinstance(self.environment.agents[1], ImprovedAgent):
                     agent = self.environment.agents[1]
-                    agent.eval_path_after_episode()
+                    agent.eval_path_after_episode(dynamic_state_closure_depth)
                 evaluation_timer_end = time.time()
                 benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
 
                 self.game_state_closure_handler.set_target_agent(self.improved_agent_1)
-                self.game_state_closure_handler.set_depth(self.improved_agent_1.state_closure_depth)
                 self.game_state_closure_handler.set_game_path(game_path_copy)
-
                 self.game_state_closure_handler.start_closure()
 
                 # Log wins/loses/draws
