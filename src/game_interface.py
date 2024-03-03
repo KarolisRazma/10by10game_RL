@@ -181,16 +181,19 @@ class GameInterface:
 
             benchmarks_playing = []
             benchmarks_evaluation = []
+            benchmarks_closure = []
+
             do_benchmarking_counter = 1
             start = time.time()
             for i in range(episodes):
 
                 if i != 0 and i % 100 == 0:
                     print(f'Reached {do_benchmarking_counter}')
-                    # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+                    self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
                     do_benchmarking_counter += 1
                     benchmarks_playing = []
                     benchmarks_evaluation = []
+                    benchmarks_closure = []
                     # self.clear_benchmarks_arrays()
 
                 # Play episode
@@ -220,9 +223,12 @@ class GameInterface:
                 evaluation_timer_end = time.time()
                 benchmarks_evaluation.append(evaluation_timer_end - evaluation_timer_start)
 
+                closure_timer_start = time.time()
                 self.game_state_closure_handler.set_target_agent(self.improved_agent_1)
                 self.game_state_closure_handler.set_game_path(game_path_copy)
                 self.game_state_closure_handler.start_closure()
+                closure_timer_end = time.time()
+                benchmarks_closure.append(closure_timer_end - closure_timer_start)
 
                 # Log wins/loses/draws
                 self.environment.game_logger.write(f'Agent [{self.environment.agents[0].name}]'
@@ -235,14 +241,15 @@ class GameInterface:
             print(f'whole time average {(end - start) / episodes}')
             print(f'playing episode average {statistics.mean(benchmarks_playing)}')
             print(f'evaluating episode average {statistics.mean(benchmarks_evaluation)}')
-            print(f'\n')
+            print(f'closure  episode average {statistics.mean(benchmarks_closure)}')
 
+            print(f'\n')
             print(f'Time elapsed: {end - start}')
             print(f'Agent [{self.environment.agents[0].name}] won {self.environment.agents[0].wins}')
             print(f'Agent [{self.environment.agents[1].name}] won {self.environment.agents[1].wins}')
             print(f'Draws: {self.environment.agents[1].draws}')
 
-            # self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
+            self.do_benchmarking(benchmarks_playing, benchmarks_evaluation, do_benchmarking_counter)
 
     def process_graph_deletion_option(self):
         while True:
@@ -268,6 +275,22 @@ class GameInterface:
             else:
                 print(GI_CONSTANTS.INVALID_OPTION)
                 continue
+
+    @staticmethod
+    def do_benchmarking(benchmarks_playing, benchmarks_evaluation, benchmarking_counter):
+        # Dump to file
+        current_datetime = datetime.datetime.now()
+        timestamp = current_datetime.strftime("%H:%M:%S")
+
+        path = f'/home/karolisr/Studijos/2023-2024_RUDUO/kursinio_projektas/NAUJI_MATAVIMAI/20231230/benchmarks/'
+        playing_file = f'{path}{timestamp}_playing_{benchmarking_counter}.txt'
+        evaluation_file = f'{path}{timestamp}_evaluation_{benchmarking_counter}.txt'
+
+        playing_array = np.array(benchmarks_playing)
+        evaluation_array = np.array(benchmarks_evaluation)
+
+        np.savetxt(playing_file, playing_array, delimiter=',', fmt="%.6f")
+        np.savetxt(evaluation_file, evaluation_array, delimiter=',', fmt="%.6f")
 
     # def do_benchmarking(self, benchmarks_playing, benchmarks_evaluation, benchmarking_counter):
     #     # Dump to file

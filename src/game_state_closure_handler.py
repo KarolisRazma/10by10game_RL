@@ -157,7 +157,12 @@ class GameStateClosureHandler:
             pair_score = 0
             for game_result in game_results_list:
                 if game_result == GameResult.WON:
-                    pair_score += 2
+                    if len(game_results_list) == 1:
+                        pair_score += 6
+                    elif len(game_results_list) == 2:
+                        pair_score += 3
+                    elif len(game_results_list) >= 3:
+                        pair_score += 2
                 if game_result == GameResult.DRAW:
                     pair_score += 1
                 if game_result == GameResult.LOST:
@@ -167,14 +172,15 @@ class GameStateClosureHandler:
         return pairs[highest_score_pair_index]
 
     def calculate_depth(self, path_len):
-        if path_len >= self.lowest_path_len_to_start_closure:
-            if path_len < 9:
-                self.depth = self.depth_in_interval_from_7_to_8
-            if path_len == 9:
-                self.depth = self.depth_in_interval_from_9_to_9
-            if path_len > 9:
-                self.depth = self.depth_in_interval_from_10
-        else:
-            self.depth = 1
+        # if path_len >= self.lowest_path_len_to_start_closure:
+        #     if path_len < 9:
+        #         self.depth = self.depth_in_interval_from_7_to_8
+        #     if path_len == 9:
+        #         self.depth = self.depth_in_interval_from_9_to_9
+        #     if path_len > 9:
+        #         self.depth = self.depth_in_interval_from_10
+        # else:
+        #     self.depth = 1
         # print(f'Depth this episode: {self.depth}')
+        self.depth = 1
         return self.depth
