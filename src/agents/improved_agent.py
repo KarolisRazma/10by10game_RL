@@ -26,7 +26,7 @@ class ImprovedAgent(ag.Agent):
     # @param learning_algorithm     --> class RLearning object
 
     def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum,
-                 is_improved_exploitation_on=False, state_closure_depth=1, exploit_to_closed_state_rate=0.0):
+                 is_improved_exploitation_on=False, exploit_to_closed_state_rate=0.0):
         # Init Agent superclass
         super().__init__(name)
 
