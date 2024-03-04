@@ -3,9 +3,9 @@
 # Improved Agent 1
 class ImprovedAgent1Parameters:
     name = "ImprovedAgent1"
-    database = "ba-sandbox"
-    discount_rate = 0.9
-    learning_rate = 0.9
+    database = "ba-base-graph"
+    discount_rate = 0.5
+    learning_rate = 0.5
     exploit_growth = 0.06
     explore_minimum = 0.10
     is_improved_exploitation_on = True
