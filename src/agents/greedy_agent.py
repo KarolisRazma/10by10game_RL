@@ -1,12 +1,11 @@
 import random
-from enum import Enum
 
 from src.agents.actions.placing_action import PlaceChipAction
 from src.agents.improved_agent import ImprovedAgent, Behaviour
 from src.game_components.board import Board
 
 
-class CustomImprovedAgent(ImprovedAgent):
+class GreedyAgent(ImprovedAgent):
 
     def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum,
                  is_improved_exploitation_on=False, exploit_to_closed_state_rate=0.0):
@@ -137,6 +136,7 @@ class CustomImprovedAgent(ImprovedAgent):
                             return PlaceChipAction(1, 2, chip.value)
                         elif game_board.is_tile_empty(6):
                             return PlaceChipAction(2, 0, chip.value)
+        return False
 
     @staticmethod
     def get_strategy_combination(combinations):
@@ -145,5 +145,3 @@ class CustomImprovedAgent(ImprovedAgent):
                 if (chip.row == 0 and chip.col == 0) or (chip.row == 2 or chip.col == 2):
                     return combination
         return combinations[random.randint(0, len(combinations) - 1)]
-
-
