@@ -124,11 +124,18 @@ class GameInterface:
                 print(GI_CONSTANTS.INVALID_OPTION)
                 continue
 
+            file = open("/home/karolisr/Desktop/results20240309.txt", "w")
+
             start = time.time()
             for i in range(episodes):
 
                 if i != 0 and i % 100 == 0:
                     print(f'Reached {int(i / 100)}')
+                    if i % 1000 == 0:
+                        file.write(
+                            f'{i}: {float(self.agent_1.wins / i) * 100} '
+                            f'{float((i - self.agent_1.wins - self.agent_1.draws) / i) * 100} '
+                            f'{float(self.agent_1.draws / i) * 100}\n')
 
                 # Play episode
                 self.environment.start_episode()
@@ -153,7 +160,7 @@ class GameInterface:
                     # self.game_state_closure_handler.set_target_agent(self.agent_2)
                     # self.game_state_closure_handler.set_game_path(game_path_copy_2)
                     # self.game_state_closure_handler.start_closure()
-        
+
                 # Log wins/loses/draws
                 self.environment.game_logger.write(f'Agent [{self.agent_1.name}]'
                                                    f' won {self.agent_1.wins}')
@@ -168,6 +175,12 @@ class GameInterface:
             print(f'Agent [{self.agent_1.name}] won {self.agent_1.wins}')
             print(f'Agent [{self.agent_2.name}] won {self.agent_2.wins}')
             print(f'Draws: {self.agent_2.draws}')
+
+            file.write(
+                f'{episodes}: {float(self.agent_1.wins / episodes) * 100} '
+                f'{float((episodes - self.agent_1.wins - self.agent_1.draws) / episodes) * 100} '
+                f'{float(self.agent_1.draws / episodes) * 100}\n')
+            file.close()
 
     def process_graph_deletion_option(self):
         if self.agent_1 is None or self.agent_2 is None:
