@@ -17,6 +17,7 @@ class ImprovedAgentActionData(ActionData):
 
         self.from_closed_state = False
         self.to_closed_state = False
+        self.is_cut = False
 
     def copy(self):
         combination_copy = []
@@ -40,4 +41,5 @@ class ImprovedAgentActionData(ActionData):
         improved_agent_action_data_copy.draw_counter = self.draw_counter
         improved_agent_action_data_copy.from_closed_state = self.from_closed_state
         improved_agent_action_data_copy.to_closed_state = self.to_closed_state
+        improved_agent_action_data_copy.is_cut = self.is_cut
         return improved_agent_action_data_copy

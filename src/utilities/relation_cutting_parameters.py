@@ -1,0 +1,5 @@
+class RelationCuttingParameters:
+    ON_FIRST_RELATION_TIMES_USED = 50
+    ON_LAST_RELATION_TIMES_USED = 20
+    GROWTH_TIMES_USED = 1
+    LOSE_RATE_BOUND = 0.55

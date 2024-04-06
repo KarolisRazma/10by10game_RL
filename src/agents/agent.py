@@ -25,6 +25,9 @@ class Agent(ABC):
         # Endgame result flags: None at init
         self.last_game_result = None
 
+        self.losing_cause = []
+        self.points = []
+
     # Resets episode details
     def reset(self):
         self.score = 0
@@ -39,6 +42,9 @@ class Agent(ABC):
 
     def get_hand_chips_values_list(self):
         return sorted([chip.value for chip in self.hand_chips])
+
+    def get_captured_chips_values_list(self):
+        return sorted([chip.value for chip in self.captured_chips])
 
     def get_random_action_for_placing(self, game_board):
         # Loop while action is not selected
@@ -70,7 +76,7 @@ class Agent(ABC):
         return actions_list
 
     @abstractmethod
-    def observe_state(self, state_data: StateData, action_data: ActionData =None):
+    def observe_state(self, state_data: StateData, action_data: ActionData = None):
         pass
 
     @abstractmethod

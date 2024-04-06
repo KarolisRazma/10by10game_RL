@@ -7,4 +7,9 @@ class Chip:
         self.col = col
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        if not isinstance(other, Chip):
+            return False
+        return self.row == other.row and self.col == other.col and self.value == other.value
+
+    def __hash__(self):
+        return hash((self.row, self.col, self.value))

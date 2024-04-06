@@ -1,7 +1,7 @@
 class StateData:
     def __init__(self, board_values, my_turn, my_score, enemy_score, chips_left, last_placed_chip_list,
-                 hand_chips_values_list, enemy_hand_chips_values_list, container_chips_values_list,
-                 is_initial=False, is_final=False):
+                 hand_chips_values_list, enemy_hand_chips_values_list, container_chips_values_list, my_captured,
+                 enemy_captured, is_initial=False, is_final=False):
         self.board_values = board_values
         self.my_turn = my_turn
         self.my_score = my_score
@@ -13,3 +13,6 @@ class StateData:
         self.container_chips_values_list = container_chips_values_list
         self.is_initial = is_initial
         self.is_final = is_final
+
+        self.my_captured = my_captured
+        self.enemy_captured = enemy_captured

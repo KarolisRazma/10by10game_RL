@@ -204,28 +204,36 @@ class Environment:
             self.agents[0].wins += 1
             self.agents[0].last_game_result = GameResult.WON
             self.agents[1].last_game_result = GameResult.LOST
+            self.agents[1].losing_cause.append(1)
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
             self.agents[0].last_game_result = GameResult.LOST
             self.agents[1].last_game_result = GameResult.WON
+            self.agents[0].losing_cause.append(1)
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
                 self.agents[0].last_game_result = GameResult.WON
                 self.agents[1].last_game_result = GameResult.LOST
+                self.agents[1].losing_cause.append(2)
+                self.agents[1].points.append((self.agents[1].score, self.agents[0].score))
                 return
             elif self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
                 self.agents[0].last_game_result = GameResult.LOST
                 self.agents[1].last_game_result = GameResult.WON
+                self.agents[0].losing_cause.append(2)
+                self.agents[0].points.append((self.agents[0].score, self.agents[1].score))
                 return
             else:
                 self.agents[0].draws += 1
                 self.agents[1].draws += 1
                 self.agents[0].last_game_result = GameResult.DRAW
                 self.agents[1].last_game_result = GameResult.DRAW
+                self.agents[0].losing_cause.append(3)
+                self.agents[1].losing_cause.append(3)
                 return
 
     def log_after_taking(self):
@@ -363,6 +371,8 @@ class Environment:
                 enemy_hand_chips_values_list=enemy_agent.get_hand_chips_values_list(),
                 container_chips_values_list=self.container.get_chips_values_list(),
                 is_final=is_final,
+                my_captured=agent.get_captured_chips_values_list(),
+                enemy_captured=enemy_agent.get_captured_chips_values_list(),
             ),
             action_data=action_data
         )
@@ -379,6 +389,8 @@ class Environment:
                 enemy_hand_chips_values_list=agent.get_hand_chips_values_list(),
                 container_chips_values_list=self.container.get_chips_values_list(),
                 is_final=is_final,
+                my_captured=enemy_agent.get_captured_chips_values_list(),
+                enemy_captured=agent.get_captured_chips_values_list(),
             ),
             action_data=action_data
         )
@@ -400,7 +412,9 @@ class Environment:
             enemy_hand_chips_values_list=second_agent.get_hand_chips_values_list(),
             container_chips_values_list=self.container.get_chips_values_list(),
             is_initial=True,
-            is_final=False
+            is_final=False,
+            my_captured=[],
+            enemy_captured=[],
         ))
         second_agent.observe_state(state_data=StateData(
             board_values=self.board.board_to_chip_values(),
@@ -413,7 +427,9 @@ class Environment:
             enemy_hand_chips_values_list=first_agent.get_hand_chips_values_list(),
             container_chips_values_list=self.container.get_chips_values_list(),
             is_initial=True,
-            is_final=False
+            is_final=False,
+            my_captured=[],
+            enemy_captured=[],
         ))
 
     def start_episode(self):

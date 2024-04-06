@@ -7,10 +7,12 @@ from src.game_components.board import Board
 
 class FastingAgent(ImprovedAgent):
 
-    def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum,
-                 is_improved_exploitation_on=False, exploit_to_closed_state_rate=0.0):
-        super().__init__(name, graph, learning_algorithm, exploit_growth, explore_minimum,
-                         is_improved_exploitation_on, exploit_to_closed_state_rate)
+    def __init__(self, name, graph, learning_algorithm, exploit_growth, explore_minimum, exploit_growth_by_depth,
+                 exploration_phase_is_applied, exploration_phase_duration,
+                 is_improved_exploitation_on=False):
+        super().__init__(name, graph, learning_algorithm, exploit_growth, explore_minimum, exploit_growth_by_depth,
+                         exploration_phase_is_applied, exploration_phase_duration,
+                         is_improved_exploitation_on)
         self.is_strategy_applied = False
 
     # @Override

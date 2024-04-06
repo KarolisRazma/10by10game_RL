@@ -3,11 +3,11 @@ from src.game_components.state_data import StateData
 
 class ImprovedAgentStateData(StateData):
     def __init__(self, board_values, my_turn, my_score, enemy_score, chips_left, last_placed_chip_list,
-                 hand_chips_values_list, enemy_hand_chips_values_list, container_chips_values_list,
-                 is_initial=False, is_final=False, is_closed=False, game_result=None):
+                 hand_chips_values_list, enemy_hand_chips_values_list, container_chips_values_list, my_captured,
+                 enemy_captured, is_initial=False, is_final=False, is_closed=False, game_result=None):
         super().__init__(board_values, my_turn, my_score, enemy_score, chips_left, last_placed_chip_list,
                          hand_chips_values_list, enemy_hand_chips_values_list, container_chips_values_list,
-                         is_initial, is_final)
+                         my_captured, enemy_captured, is_initial, is_final)
         self.is_closed = is_closed
 
         # Not in database
@@ -28,5 +28,7 @@ class ImprovedAgentStateData(StateData):
             is_initial=self.is_initial,
             is_final=self.is_final,
             is_closed=self.is_closed,
-            game_result=self.game_result
+            game_result=self.game_result,
+            my_captured=self.my_captured.copy(),
+            enemy_captured=self.enemy_captured.copy()
         )

@@ -1,12 +1,16 @@
 import time
+from collections import Counter
 
 from neo4j import GraphDatabase
 
 import src.utilities.constants3x3 as c3x3
 import src.utilities.gi_constants as GI_CONSTANTS
+from src.agents.adhoc.agents.balanced_agent import BalancedAgent
+from src.agents.adhoc.agents.fasting_agent import FastingAgent
+from src.agents.adhoc.agents.greedy_agent import GreedyAgent
+
 from src.agents.agent import Agent
-from src.agents.fasting_agent import FastingAgent
-from src.agents.greedy_agent import GreedyAgent
+
 from src.agents.improved_agent import ImprovedAgent
 from src.agents.improved_agent_learning.graph import Graph
 from src.agents.improved_agent_learning.learning import RLearning
@@ -14,10 +18,7 @@ from src.agents.random_walker_agent import RandomWalkerAgent
 from src.environment import Environment
 from src.game_components.board import Board
 from src.game_components.container import Container
-from src.game_state_closure_handler import GameStateClosureHandler
-from src.utilities.agent_parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters, \
-    GreedyAgentParameters, FastingAgentParameters
-from src.utilities.closure_handler_parameters import ClosureHandlerParameters
+from src.utilities.agent_parameters import ImprovedAgent1Parameters, ImprovedAgent2Parameters
 from src.utilities.logger import Logger
 
 
@@ -31,14 +32,6 @@ class GameInterface:
                                        container=Container(c3x3.chips_types, c3x3.chips_per_type),
                                        game_logger=Logger("game_logger", "game_logs.log")
                                        )
-
-        self.game_state_closure_handler = GameStateClosureHandler(
-            lowest_path_len_to_start_closure=ClosureHandlerParameters.lowest_path_len_to_start_closure,
-            depth_in_interval_from_7_to_8=ClosureHandlerParameters.depth_in_interval_from_7_to_8,
-            depth_in_interval_from_9_to_9=ClosureHandlerParameters.depth_in_interval_from_9_to_9,
-            depth_in_interval_from_10=ClosureHandlerParameters.depth_in_interval_from_10
-        )
-
         self.agent_1 = None
         self.agent_2 = None
         self.agents: [Agent] = []
@@ -124,7 +117,7 @@ class GameInterface:
                 print(GI_CONSTANTS.INVALID_OPTION)
                 continue
 
-            file = open("/home/karolisr/Desktop/results20240309.txt", "w")
+            file = open("/home/karolisr/Desktop/ba-random.txt", "w")
 
             start = time.time()
             for i in range(episodes):
@@ -140,26 +133,11 @@ class GameInterface:
                 # Play episode
                 self.environment.start_episode()
 
-                # Do game_path copy
+                # Evaluate
                 if isinstance(self.agent_1, ImprovedAgent):
-                    game_path_copy_1 = self.agent_1.last_episode_path.copy()
-                    dynamic_state_closure_depth = self.game_state_closure_handler.calculate_depth(
-                        len(game_path_copy_1.state_data_list)
-                    )
-                    self.agent_1.eval_path_after_episode(dynamic_state_closure_depth)
-                    # self.game_state_closure_handler.set_target_agent(self.agent_1)
-                    # self.game_state_closure_handler.set_game_path(game_path_copy_1)
-                    # self.game_state_closure_handler.start_closure()
-
+                    self.agent_1.eval_path_after_episode()
                 if isinstance(self.agent_2, ImprovedAgent):
-                    game_path_copy_2 = self.agent_2.last_episode_path.copy()
-                    dynamic_state_closure_depth = self.game_state_closure_handler.calculate_depth(
-                        len(game_path_copy_2.state_data_list)
-                    )
-                    self.agent_2.eval_path_after_episode(dynamic_state_closure_depth)
-                    # self.game_state_closure_handler.set_target_agent(self.agent_2)
-                    # self.game_state_closure_handler.set_game_path(game_path_copy_2)
-                    # self.game_state_closure_handler.start_closure()
+                    self.agent_2.eval_path_after_episode()
 
                 # Log wins/loses/draws
                 self.environment.game_logger.write(f'Agent [{self.agent_1.name}]'
@@ -175,6 +153,12 @@ class GameInterface:
             print(f'Agent [{self.agent_1.name}] won {self.agent_1.wins}')
             print(f'Agent [{self.agent_2.name}] won {self.agent_2.wins}')
             print(f'Draws: {self.agent_2.draws}')
+
+            if isinstance(self.agent_1, BalancedAgent):
+                print(f'Lost because enemy scored more points: {Counter(self.agent_1.losing_cause)[1]}')
+                print(
+                    f'Lost because container is empty and agent has more points: {Counter(self.agent_1.losing_cause)[2]}')
+                print(self.agent_1.points)
 
             file.write(
                 f'{episodes}: {float(self.agent_1.wins / episodes) * 100} '
@@ -220,10 +204,13 @@ class GameInterface:
                                                                       ImprovedAgent1Parameters.learning_rate),
                                          exploit_growth=ImprovedAgent1Parameters.exploit_growth,
                                          explore_minimum=ImprovedAgent1Parameters.explore_minimum,
+                                         exploit_growth_by_depth=ImprovedAgent1Parameters.exploit_growth_by_depth,
                                          is_improved_exploitation_on=
                                          ImprovedAgent1Parameters.is_improved_exploitation_on,
-                                         exploit_to_closed_state_rate=
-                                         ImprovedAgent1Parameters.exploit_to_closed_state_rate,
+                                         exploration_phase_is_applied=
+                                         ImprovedAgent1Parameters.exploration_phase_is_applied,
+                                         exploration_phase_duration=
+                                         ImprovedAgent1Parameters.exploration_phase_duration,
                                          ))
         self.agents.append(ImprovedAgent(name=ImprovedAgent2Parameters.name,
                                          graph=self.get_database(ImprovedAgent2Parameters.database),
@@ -231,35 +218,17 @@ class GameInterface:
                                                                       ImprovedAgent2Parameters.learning_rate),
                                          exploit_growth=ImprovedAgent2Parameters.exploit_growth,
                                          explore_minimum=ImprovedAgent2Parameters.explore_minimum,
+                                         exploit_growth_by_depth=ImprovedAgent2Parameters.exploit_growth_by_depth,
                                          is_improved_exploitation_on=
                                          ImprovedAgent2Parameters.is_improved_exploitation_on,
-                                         exploit_to_closed_state_rate=
-                                         ImprovedAgent2Parameters.exploit_to_closed_state_rate,
+                                         exploration_phase_is_applied=
+                                         ImprovedAgent2Parameters.exploration_phase_is_applied,
+                                         exploration_phase_duration=
+                                         ImprovedAgent2Parameters.exploration_phase_duration,
                                          ))
-        self.agents.append(GreedyAgent(name=GreedyAgentParameters.name,
-                                       graph=self.get_database(GreedyAgentParameters.database),
-                                       learning_algorithm=RLearning(
-                                           GreedyAgentParameters.discount_rate,
-                                           GreedyAgentParameters.learning_rate),
-                                       exploit_growth=GreedyAgentParameters.exploit_growth,
-                                       explore_minimum=GreedyAgentParameters.explore_minimum,
-                                       is_improved_exploitation_on=
-                                       GreedyAgentParameters.is_improved_exploitation_on,
-                                       exploit_to_closed_state_rate=
-                                       GreedyAgentParameters.exploit_to_closed_state_rate,
-                                       ))
-        self.agents.append(FastingAgent(name=FastingAgentParameters.name,
-                                        graph=self.get_database(FastingAgentParameters.database),
-                                        learning_algorithm=RLearning(
-                                            FastingAgentParameters.discount_rate,
-                                            FastingAgentParameters.learning_rate),
-                                        exploit_growth=FastingAgentParameters.exploit_growth,
-                                        explore_minimum=FastingAgentParameters.explore_minimum,
-                                        is_improved_exploitation_on=
-                                        FastingAgentParameters.is_improved_exploitation_on,
-                                        exploit_to_closed_state_rate=
-                                        FastingAgentParameters.exploit_to_closed_state_rate,
-                                        ))
+        self.agents.append(GreedyAgent(name="GreedyAgent"))
+        self.agents.append(FastingAgent(name="FastingAgent"))
+        self.agents.append(BalancedAgent(name="BalancedAgent"))
 
     def select_agent_1(self):
         while True:

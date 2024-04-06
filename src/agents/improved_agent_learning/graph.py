@@ -34,6 +34,7 @@ from src.agents.improved_agent_learning.improved_agent_state_data import Improve
 #   property: draw_counter (optional)
 #   property: q_value (optional)
 #   property: from_closed_state (optional)
+#   property: is_cut (optional)
 
 class Graph:
     def __init__(self, session):
@@ -46,7 +47,7 @@ class Graph:
         self.session.run(query_1)
         self.session.run(query_2)
 
-    def find_or_create_final_state(self, state_data: ImprovedAgentStateData):
+    def find_or_create_final_state(self, state_data: StateData):
         params = {
             "board_values": state_data.board_values,
             "my_turn": state_data.my_turn,
@@ -56,8 +57,9 @@ class Graph:
 
             "last_placed_chip": state_data.last_placed_chip_list,
             "hand_chips_values": state_data.hand_chips_values_list,
-            "enemy_hand_chips_values": state_data.enemy_hand_chips_values_list,
-            "container_chips_values": state_data.container_chips_values_list,
+
+            "my_captured": state_data.my_captured,
+            "enemy_captured": state_data.enemy_captured,
 
             "is_initial": state_data.is_initial,
             "is_final": state_data.is_final,
@@ -65,11 +67,9 @@ class Graph:
         self.session.run(QUERIES.FIND_OR_CREATE_FINAL_STATE, **params)
 
     def find_or_create_previous_state_and_make_next_relation(self,
-                                                             previous_state_data: ImprovedAgentStateData,
+                                                             previous_state_data: StateData,
                                                              relation_data: ImprovedAgentActionData,
-                                                             current_state_data: ImprovedAgentStateData,
-                                                             game_result: GameResult,
-                                                             to_closed_state=False):
+                                                             current_state_data: StateData):
         combination_integer_list = []
         for chip in relation_data.combination:
             combination_integer_list.append(chip.row)
@@ -86,8 +86,8 @@ class Graph:
             "p_is_final": previous_state_data.is_final,
             "p_last_placed_chip": previous_state_data.last_placed_chip_list,
             "p_hand_chips_values": previous_state_data.hand_chips_values_list,
-            "p_enemy_hand_chips_values": previous_state_data.enemy_hand_chips_values_list,
-            "p_container_chips_values": previous_state_data.container_chips_values_list,
+            "p_my_captured": previous_state_data.my_captured,
+            "p_enemy_captured": previous_state_data.enemy_captured,
             "c_board_values": current_state_data.board_values,
             "c_my_turn": current_state_data.my_turn,
             "c_my_score": current_state_data.my_score,
@@ -97,22 +97,56 @@ class Graph:
             "c_is_final": current_state_data.is_final,
             "c_last_placed_chip": current_state_data.last_placed_chip_list,
             "c_hand_chips_values": current_state_data.hand_chips_values_list,
-            "c_enemy_hand_chips_values": current_state_data.enemy_hand_chips_values_list,
-            "c_container_chips_values": current_state_data.container_chips_values_list,
+            "c_my_captured": current_state_data.my_captured,
+            "c_enemy_captured": current_state_data.enemy_captured,
             "row": relation_data.row,
             "col": relation_data.col,
             "chip_value": relation_data.chip_value,
             "has_taking": relation_data.has_taking,
             "combination": combination_integer_list,
             "q_value": relation_data.q_value,
-            "to_closed_state": to_closed_state
+            "times_used": relation_data.times_used,
+            "win_counter": relation_data.win_counter,
+            "lose_counter": relation_data.lose_counter,
+            "draw_counter": relation_data.draw_counter,
         }
+        self.session.run(QUERIES.FIND_OR_CREATE_PREVIOUS_STATE_AND_MAKE_NEXT_RELATION, **params)
+
+    def update_relation_properties(self, previous_state_data: StateData,
+                                   relation_data: ImprovedAgentActionData, game_result: GameResult):
+        combination_integer_list = []
+        for chip in relation_data.combination:
+            combination_integer_list.append(chip.row)
+            combination_integer_list.append(chip.col)
+            combination_integer_list.append(chip.value)
+
+        params = {
+            "p_board_values": previous_state_data.board_values,
+            "p_my_turn": previous_state_data.my_turn,
+            "p_my_score": previous_state_data.my_score,
+            "p_enemy_score": previous_state_data.enemy_score,
+            "p_chips_left": previous_state_data.chips_left,
+            "p_is_initial": previous_state_data.is_initial,
+            "p_is_final": previous_state_data.is_final,
+            "p_last_placed_chip": previous_state_data.last_placed_chip_list,
+            "p_hand_chips_values": previous_state_data.hand_chips_values_list,
+            "p_my_captured": previous_state_data.my_captured,
+            "p_enemy_captured": previous_state_data.enemy_captured,
+            "row": relation_data.row,
+            "col": relation_data.col,
+            "chip_value": relation_data.chip_value,
+            "has_taking": relation_data.has_taking,
+            "combination": combination_integer_list,
+            "q_value": relation_data.q_value,
+            "is_cut": relation_data.is_cut,
+        }
+
         if game_result == GameResult.WON:
-            self.session.run(QUERIES.FIND_OR_CREATE_PREVIOUS_STATE_AND_MAKE_NEXT_RELATION_WHEN_WIN, **params)
+            self.session.run(QUERIES.UPDATE_RELATION_PROPERTIES_WHEN_WIN, **params)
         elif game_result == GameResult.LOST:
-            self.session.run(QUERIES.FIND_OR_CREATE_PREVIOUS_STATE_AND_MAKE_NEXT_RELATION_WHEN_LOSE, **params)
+            self.session.run(QUERIES.UPDATE_RELATION_PROPERTIES_WHEN_LOSE, **params)
         elif game_result == GameResult.DRAW:
-            self.session.run(QUERIES.FIND_OR_CREATE_PREVIOUS_STATE_AND_MAKE_NEXT_RELATION_WHEN_DRAW, **params)
+            self.session.run(QUERIES.UPDATE_RELATION_PROPERTIES_WHEN_DRAW, **params)
 
     def find_game_state_next_relations(self, state_data: StateData):
         params = {
@@ -125,8 +159,8 @@ class Graph:
             "is_final": state_data.is_final,
             "last_placed_chip": state_data.last_placed_chip_list,
             "hand_chips_values": state_data.hand_chips_values_list,
-            "enemy_hand_chips_values": state_data.enemy_hand_chips_values_list,
-            "container_chips_values": state_data.container_chips_values_list
+            "my_captured": state_data.my_captured,
+            "enemy_captured": state_data.enemy_captured,
         }
         result = self.session.run(QUERIES.FIND_GAME_STATE_NEXT_RELATIONS, **params)
         records = list(result)
@@ -139,6 +173,11 @@ class Graph:
     def find_max_next_state_q_value(self, state_data):
         relations_info = self.find_game_state_next_relations(state_data)
         result = (max(relations_info, key=lambda x: x.q_value)).q_value
+        return result
+
+    def find_min_next_state_q_value(self, state_data):
+        relations_info = self.find_game_state_next_relations(state_data)
+        result = (min(relations_info, key=lambda x: x.q_value)).q_value
         return result
 
     # Only used in state closing (DO NOT USE ANYWHERE ELSE)
@@ -160,8 +199,8 @@ class Graph:
             "c_is_final": current_state_data.is_final,
             "c_last_placed_chip": current_state_data.last_placed_chip_list,
             "c_hand_chips_values": current_state_data.hand_chips_values_list,
-            "c_enemy_hand_chips_values": current_state_data.enemy_hand_chips_values_list,
-            "c_container_chips_values": current_state_data.container_chips_values_list,
+            "c_my_captured": current_state_data.my_captured,
+            "c_enemy_captured": current_state_data.enemy_captured,
             "n_board_values": next_state_data.board_values,
             "n_my_turn": next_state_data.my_turn,
             "n_my_score": next_state_data.my_score,
@@ -171,8 +210,8 @@ class Graph:
             "n_is_final": next_state_data.is_final,
             "n_last_placed_chip": next_state_data.last_placed_chip_list,
             "n_hand_chips_values": next_state_data.hand_chips_values_list,
-            "n_enemy_hand_chips_values": next_state_data.enemy_hand_chips_values_list,
-            "n_container_chips_values": next_state_data.container_chips_values_list,
+            "n_my_captured": next_state_data.my_captured,
+            "n_enemy_captured": next_state_data.enemy_captured,
             "row": relation_data.row,
             "col": relation_data.col,
             "chip_value": relation_data.chip_value,
@@ -196,11 +235,11 @@ class Graph:
             "chips_left": state_data.chips_left,
             "last_placed_chip": state_data.last_placed_chip_list,
             "hand_chips_values": state_data.hand_chips_values_list,
-            "enemy_hand_chips_values": state_data.enemy_hand_chips_values_list,
-            "container_chips_values": state_data.container_chips_values_list,
             "is_initial": state_data.is_initial,
             "is_final": state_data.is_final,
-            "is_closed": state_data.is_closed
+            "is_closed": state_data.is_closed,
+            "my_captured": state_data.my_captured,
+            "enemy_captured": state_data.enemy_captured,
         }
         self.session.run(QUERIES.CLOSE_GAME_STATE, **params)
 
@@ -219,10 +258,10 @@ class Graph:
             "chips_left": state_data.chips_left,
             "last_placed_chip": state_data.last_placed_chip_list,
             "hand_chips_values": state_data.hand_chips_values_list,
-            "enemy_hand_chips_values": state_data.enemy_hand_chips_values_list,
-            "container_chips_values": state_data.container_chips_values_list,
             "is_initial": state_data.is_initial,
             "is_final": state_data.is_final,
+            "my_captured": state_data.my_captured,
+            "enemy_captured": state_data.enemy_captured,
             "row": relation_data.row,
             "col": relation_data.col,
             "chip_value": relation_data.chip_value,
@@ -230,6 +269,85 @@ class Graph:
             "combination": combination_integer_list,
         }
         self.session.run(QUERIES.REMOVE_RELATION, **params)
+
+    def find_identical_relations_from_state(self, state_data: ImprovedAgentStateData,
+                                            relation_data: ImprovedAgentActionData):
+        combination_integer_list = []
+        for chip in relation_data.combination:
+            combination_integer_list.append(chip.row)
+            combination_integer_list.append(chip.col)
+            combination_integer_list.append(chip.value)
+        params = {
+            "board_values": state_data.board_values,
+            "my_turn": state_data.my_turn,
+            "my_score": state_data.my_score,
+            "enemy_score": state_data.enemy_score,
+            "chips_left": state_data.chips_left,
+            "last_placed_chip": state_data.last_placed_chip_list,
+            "hand_chips_values": state_data.hand_chips_values_list,
+            "is_initial": state_data.is_initial,
+            "is_final": state_data.is_final,
+            "my_captured": state_data.my_captured,
+            "enemy_captured": state_data.enemy_captured,
+            "row": relation_data.row,
+            "col": relation_data.col,
+            "chip_value": relation_data.chip_value,
+            "has_taking": relation_data.has_taking,
+            "combination": combination_integer_list,
+        }
+        result = self.session.run(QUERIES.FIND_IDENTICAL_RELATIONS_FROM_STATE, **params)
+        records = list(result)
+        if records[0]["rel"] is None:
+            return []
+        updated_records = []
+        for record in records:
+            rel_properties = record["rel"]._properties
+            updated_records.append(self.make_improved_agent_action_data_from_record(rel_properties))
+        return updated_records
+
+    def find_relation_data_by_previous_and_current_state(self, prev_state_data: ImprovedAgentStateData,
+                                                         curr_state_data: ImprovedAgentStateData,
+                                                         relation_data: ImprovedAgentActionData):
+        combination_integer_list = []
+        for chip in relation_data.combination:
+            combination_integer_list.append(chip.row)
+            combination_integer_list.append(chip.col)
+            combination_integer_list.append(chip.value)
+        params = {
+            "p_board_values": prev_state_data.board_values,
+            "p_my_turn": prev_state_data.my_turn,
+            "p_my_score": prev_state_data.my_score,
+            "p_enemy_score": prev_state_data.enemy_score,
+            "p_chips_left": prev_state_data.chips_left,
+            "p_last_placed_chip": prev_state_data.last_placed_chip_list,
+            "p_hand_chips_values": prev_state_data.hand_chips_values_list,
+            "p_is_initial": prev_state_data.is_initial,
+            "p_is_final": prev_state_data.is_final,
+            "p_my_captured": prev_state_data.my_captured,
+            "p_enemy_captured": prev_state_data.enemy_captured,
+            "row": relation_data.row,
+            "col": relation_data.col,
+            "chip_value": relation_data.chip_value,
+            "has_taking": relation_data.has_taking,
+            "combination": combination_integer_list,
+            "c_board_values": curr_state_data.board_values,
+            "c_my_turn": curr_state_data.my_turn,
+            "c_my_score": curr_state_data.my_score,
+            "c_enemy_score": curr_state_data.enemy_score,
+            "c_chips_left": curr_state_data.chips_left,
+            "c_last_placed_chip": curr_state_data.last_placed_chip_list,
+            "c_hand_chips_values": curr_state_data.hand_chips_values_list,
+            "c_is_initial": curr_state_data.is_initial,
+            "c_is_final": curr_state_data.is_final,
+            "c_my_captured": curr_state_data.my_captured,
+            "c_enemy_captured": curr_state_data.enemy_captured,
+        }
+        result = self.session.run(QUERIES.FIND_RELATION_DATA_BY_PREVIOUS_AND_CURRENT_STATE, **params)
+        record = result.single()
+        if record["rel"] is not None:
+            rel_properties = record["rel"]._properties
+            return self.make_improved_agent_action_data_from_record(rel_properties)
+        return None
 
     @staticmethod
     def make_improved_agent_action_data_from_record(relation_properties):
@@ -264,6 +382,8 @@ class Graph:
             improved_agent_action_data.lose_counter = relation_properties['lose_counter']
         if 'draw_counter' in relation_properties.keys():
             improved_agent_action_data.draw_counter = relation_properties['draw_counter']
+        if 'is_cut' in relation_properties.keys():
+            improved_agent_action_data.is_cut = relation_properties['is_cut']
 
         return improved_agent_action_data
 
@@ -278,8 +398,6 @@ class Graph:
     #     chips_left = record['chips_left']
     #     last_placed_chip_list = record['last_placed_chip']
     #     hand_chips_values_list = record['hand_chips_values']
-    #     enemy_hand_chips_values_list = record['enemy_hand_chips_values']
-    #     container_chips_values_list = record['container_chips_values']
     #     is_initial = record['is_initial']
     #     is_final = record['is_final']
     #
@@ -291,8 +409,6 @@ class Graph:
     #         chips_left=chips_left,
     #         last_placed_chip_list=last_placed_chip_list,
     #         hand_chips_values_list=hand_chips_values_list,
-    #         enemy_hand_chips_values_list=enemy_hand_chips_values_list,
-    #         container_chips_values_list=container_chips_values_list,
     #         is_initial=is_initial,
     #         is_final=is_final
     #     )
