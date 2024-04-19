@@ -67,7 +67,7 @@ class ImprovedAgent(ag.Agent):
         self.exploration_phase_duration = exploration_phase_duration
         self.episodes_played = 0
 
-        self.is_strategy_applied = False
+        self.behaviours_by_depth = {}
 
     def observe_state(self, state_data: StateData, action_data: ActionData = None):
         self.current_state_data = state_data
@@ -107,29 +107,15 @@ class ImprovedAgent(ag.Agent):
     def select_placing_action(self, game_board):
         return self.select_action(game_board)
 
-    #
-    # def select_taking_action(self, game_board, combinations):
-    #     # I think, I need to clarify this one:
-    #     # If behaviour is EXPLORE, it means that we didn't have combination yet,
-    #     # But if behaviour is EXPLOIT and the game let us choose combination,
-    #     # Then it means, that we already know what combination we want to exploit.
-    #     if self.this_turn_behaviour == Behaviour.EXPLORE:
-    #         return self.do_explore_taking(combinations)
-    #     else:
-    #         return self.exploit_combination_in_this_turn
-
     def select_taking_action(self, game_board, combinations):
-        if not self.is_strategy_applied:
-            # I think, I need to clarify this one:
-            # If behaviour is EXPLORE, it means that we didn't have combination yet,
-            # But if behaviour is EXPLOIT and the game let us choose combination,
-            # Then it means, that we already know what combination we want to exploit.
-            if self.this_turn_behaviour == Behaviour.EXPLORE:
-                return self.do_explore_taking(combinations)
-            else:
-                return self.exploit_combination_in_this_turn
+        # I think, I need to clarify this one:
+        # If behaviour is EXPLORE, it means that we didn't have combination yet,
+        # But if behaviour is EXPLOIT and the game let us choose combination,
+        # Then it means, that we already know what combination we want to exploit.
+        if self.this_turn_behaviour == Behaviour.EXPLORE:
+            return self.do_explore_taking(combinations)
         else:
-            return self.get_strategy_combination(combinations)
+            return self.exploit_combination_in_this_turn
 
     def reset(self):
         super().reset()
@@ -174,16 +160,6 @@ class ImprovedAgent(ag.Agent):
         self.relations = self.graph.find_game_state_next_relations(self.current_state_data)
         self.relations = self.remove_relations_duplicates()
 
-        if self.current_depth > 2:
-            result_of_strategy = self.strategise_blue_tiles(game_board)
-
-            if isinstance(result_of_strategy, PlaceChipAction):
-                self.is_strategy_applied = True
-                self.this_turn_behaviour = None
-                return result_of_strategy
-            else:
-                self.is_strategy_applied = False
-
         # If an exploratory phase is applied, then explore a set number of episodes
         if self.is_exploration_phase():
             self.this_turn_behaviour = Behaviour.EXPLORE
@@ -210,9 +186,13 @@ class ImprovedAgent(ag.Agent):
         # Getting agent's behaviour for this round
         self.this_turn_behaviour = self.get_agent_behaviour()
 
-        print(f'\nExplore rate: {self.explore_rate}')
-        print(f'Exploit rate: {self.exploit_rate}')
-        print(f'Behaviour: {self.this_turn_behaviour}')
+        # print(f'\nExplore rate: {self.explore_rate}')
+        # print(f'Exploit rate: {self.exploit_rate}')
+        # print(f'Behaviour: {self.this_turn_behaviour}')
+        if str(self.current_depth) in self.behaviours_by_depth.keys():
+            self.behaviours_by_depth[str(self.current_depth)].append(len(self.relations))
+        else:
+            self.behaviours_by_depth[str(self.current_depth)] = [len(self.relations)]
 
         if self.this_turn_behaviour == Behaviour.EXPLORE:
             return self.do_explore_placing(game_board)
@@ -297,98 +277,6 @@ class ImprovedAgent(ag.Agent):
     @staticmethod
     def is_blue_tiles_empty(game_board: Board):
         return game_board.is_tile_empty(0) and game_board.is_tile_empty(8)
-
-    def strategise_blue_tiles(self, game_board: Board):
-        if not self.is_blue_tiles_empty(game_board):
-            blue_tiles = self.get_blue_tiles(game_board)
-            if blue_tiles[0].value != 0 and blue_tiles[1].value != 0:
-                if game_board.is_tile_empty(4):
-                    for chip in self.hand_chips:
-                        if blue_tiles[0].value + chip.value + blue_tiles[1].value == 4:
-                            return PlaceChipAction(1, 1, chip.value)
-            blue_tile = blue_tiles[0] if blue_tiles[0].value != 0 else blue_tiles[1]
-            if blue_tile.row == 0:
-                for chip in self.hand_chips:
-                    if chip.value + blue_tile.value == 4:
-                        if game_board.is_tile_empty(1):
-                            return PlaceChipAction(0, 1, chip.value)
-                        elif game_board.is_tile_empty(3):
-                            return PlaceChipAction(1, 0, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-            elif blue_tile.row == 2:
-                for chip in self.hand_chips:
-                    if chip.value + blue_tile.value == 4:
-                        if game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(5):
-                            return PlaceChipAction(1, 2, chip.value)
-                        elif game_board.is_tile_empty(7):
-                            return PlaceChipAction(2, 1, chip.value)
-        else:
-            if not game_board.is_tile_empty(1):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[1].value == 4:
-                        if game_board.is_tile_empty(2):
-                            return PlaceChipAction(0, 2, chip.value)
-                        elif game_board.is_tile_empty(3):
-                            return PlaceChipAction(1, 0, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(5):
-                            return PlaceChipAction(1, 2, chip.value)
-            if not game_board.is_tile_empty(2):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[2].value == 4:
-                        if game_board.is_tile_empty(1):
-                            return PlaceChipAction(0, 1, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(5):
-                            return PlaceChipAction(1, 2, chip.value)
-            if not game_board.is_tile_empty(3):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[3].value == 4:
-                        if game_board.is_tile_empty(1):
-                            return PlaceChipAction(0, 1, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(6):
-                            return PlaceChipAction(2, 0, chip.value)
-                        elif game_board.is_tile_empty(7):
-                            return PlaceChipAction(2, 1, chip.value)
-            if not game_board.is_tile_empty(5):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[5].value == 4:
-                        if game_board.is_tile_empty(1):
-                            return PlaceChipAction(0, 1, chip.value)
-                        elif game_board.is_tile_empty(2):
-                            return PlaceChipAction(0, 2, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(7):
-                            return PlaceChipAction(2, 1, chip.value)
-            if not game_board.is_tile_empty(6):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[6].value == 4:
-                        if game_board.is_tile_empty(3):
-                            return PlaceChipAction(1, 0, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(7):
-                            return PlaceChipAction(2, 1, chip.value)
-            if not game_board.is_tile_empty(7):
-                for chip in self.hand_chips:
-                    if chip.value + game_board.chips[7].value == 4:
-                        if game_board.is_tile_empty(3):
-                            return PlaceChipAction(1, 0, chip.value)
-                        elif game_board.is_tile_empty(4):
-                            return PlaceChipAction(1, 1, chip.value)
-                        elif game_board.is_tile_empty(5):
-                            return PlaceChipAction(1, 2, chip.value)
-                        elif game_board.is_tile_empty(6):
-                            return PlaceChipAction(2, 0, chip.value)
-        return False
 
     @staticmethod
     def get_strategy_combination(combinations):

@@ -1,5 +1,5 @@
 from src.agents.adhoc.adhoc_agent import AdhocAgent
-from src.agents.adhoc.helpers.combination_order import CombinationOrder
+from src.agents.adhoc.commons.combination_order import CombinationOrder
 from src.agents.adhoc.strategies.avoid_combinations_strategy import AvoidCombinationsStrategy
 from src.agents.adhoc.strategies.place_for_combination_strategy import PlaceForCombinationStrategy
 from src.agents.adhoc.strategies.take_least_points_strategy import TakeLeastPointsStrategy

@@ -5,9 +5,12 @@ from neo4j import GraphDatabase
 
 import src.utilities.constants3x3 as c3x3
 import src.utilities.gi_constants as GI_CONSTANTS
+from src.agents.adhoc.agents.balanced2_agent import BalancedAgent2
 from src.agents.adhoc.agents.balanced_agent import BalancedAgent
+from src.agents.adhoc.agents.custom_agent import CustomAgent
 from src.agents.adhoc.agents.fasting_agent import FastingAgent
 from src.agents.adhoc.agents.greedy_agent import GreedyAgent
+from src.agents.adhoc.agents.noname_agent import NonameAgent
 
 from src.agents.agent import Agent
 
@@ -118,6 +121,7 @@ class GameInterface:
                 continue
 
             file = open("/home/karolisr/Desktop/ba-random.txt", "w")
+            file2 = open("/home/karolisr/Desktop/ba-zingsniai.txt", "w")
 
             start = time.time()
             for i in range(episodes):
@@ -154,17 +158,30 @@ class GameInterface:
             print(f'Agent [{self.agent_2.name}] won {self.agent_2.wins}')
             print(f'Draws: {self.agent_2.draws}')
 
-            if isinstance(self.agent_1, BalancedAgent):
-                print(f'Lost because enemy scored more points: {Counter(self.agent_1.losing_cause)[1]}')
-                print(
-                    f'Lost because container is empty and agent has more points: {Counter(self.agent_1.losing_cause)[2]}')
-                print(self.agent_1.points)
+            print(self.agent_1.name)
+            print(f'Lost because enemy scored more points: {self.agent_1.losing_by_points}')
+            print(
+                f'Lost because container is empty and agent has more points: {self.agent_1.losing_by_empty_container}')
+
+            print(self.agent_2.name)
+            print(f'Lost because enemy scored more points: {self.agent_2.losing_by_points}')
+            print(
+                f'Lost because container is empty and agent has more points: {self.agent_2.losing_by_empty_container}')
+            
+            # print(self.agent_1.points)
+
+            # print(f'{self.agent_1.behaviours_by_depth}')
+            # updated_dict = {}
+            # for key in self.agent_1.behaviours_by_depth:
+            #     updated_dict[key] = sum(self.agent_1.behaviours_by_depth[key])
+            # file2.write(str(updated_dict))
 
             file.write(
                 f'{episodes}: {float(self.agent_1.wins / episodes) * 100} '
                 f'{float((episodes - self.agent_1.wins - self.agent_1.draws) / episodes) * 100} '
                 f'{float(self.agent_1.draws / episodes) * 100}\n')
             file.close()
+            file2.close()
 
     def process_graph_deletion_option(self):
         if self.agent_1 is None or self.agent_2 is None:
@@ -228,7 +245,8 @@ class GameInterface:
                                          ))
         self.agents.append(GreedyAgent(name="GreedyAgent"))
         self.agents.append(FastingAgent(name="FastingAgent"))
-        self.agents.append(BalancedAgent(name="BalancedAgent"))
+        self.agents.append(BalancedAgent2(name="BalancedAgent2"))
+        self.agents.append(CustomAgent(name="CustomAgent"))
 
     def select_agent_1(self):
         while True:

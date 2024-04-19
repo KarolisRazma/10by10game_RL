@@ -7,9 +7,9 @@ class ImprovedAgent1Parameters:
     discount_rate = 0.50
     learning_rate = 0.90
 
-    exploit_growth = 0.09
-    explore_minimum = 0.10
-    exploit_growth_by_depth = 0.05
+    exploit_growth = 0.15
+    explore_minimum = 0.05
+    exploit_growth_by_depth = 0.10
 
     is_improved_exploitation_on = False
     improved_exploitation_least_times_used = 10

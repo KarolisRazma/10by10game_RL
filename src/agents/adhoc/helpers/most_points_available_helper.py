@@ -1,9 +1,8 @@
 from src.agents.actions.placing_action import PlaceChipAction
-from src.agents.adhoc.adhoc_strategy import AdhocStrategy
-from src.agents.adhoc.commons.combination_order import CombinationOrder
+from src.agents.adhoc.adhoc_helper import AdhocHelper
 
 
-class PlaceForCombinationStrategy(AdhocStrategy):
+class MostPointsAvailableHelper(AdhocHelper):
 
     def __init__(self):
         self.top_left = 0
@@ -42,41 +41,23 @@ class PlaceForCombinationStrategy(AdhocStrategy):
         self.bottom_right_row = 2
         self.bottom_right_col = 2
 
-    def give_strategy_result(self, game_board, hand_chips, order):
-        if order == CombinationOrder.ASC:
-            return self.asc_order_combinations(game_board, hand_chips)
-        else:
-            return self.desc_order_combinations(game_board, hand_chips)
+    def give_helper_result(self, game_board, hand_chips, ignore_blue=False):
+        return self.get_most_points_available(game_board, hand_chips, ignore_blue)
 
-    def asc_order_combinations(self, game_board, hand_chips):
-        one_point_place_action = self.process_one_point_placements(game_board, hand_chips)
-        if one_point_place_action is not None:
-            return one_point_place_action
-        two_points_place_action = self.process_two_points_placements(game_board, hand_chips)
-        if two_points_place_action is not None:
-            return two_points_place_action
-        three_points_place_action = self.process_three_points_placements(game_board, hand_chips)
-        if three_points_place_action is not None:
-            return three_points_place_action
+    def get_most_points_available(self, game_board, hand_chips, ignore_blue):
         four_points_place_action = self.process_four_points_placements(game_board, hand_chips)
         if four_points_place_action is not None:
-            return four_points_place_action
-        return None
-
-    def desc_order_combinations(self, game_board, hand_chips):
-        four_points_place_action = self.process_four_points_placements(game_board, hand_chips)
-        if four_points_place_action is not None:
-            return four_points_place_action
+            return 4
         three_points_place_action = self.process_three_points_placements(game_board, hand_chips)
         if three_points_place_action is not None:
-            return three_points_place_action
-        two_points_place_action = self.process_two_points_placements(game_board, hand_chips)
+            return 3
+        two_points_place_action = self.process_two_points_placements(game_board, hand_chips, ignore_blue)
         if two_points_place_action is not None:
-            return two_points_place_action
-        one_point_place_action = self.process_one_point_placements(game_board, hand_chips)
+            return 2
+        one_point_place_action = self.process_one_point_placements(game_board, hand_chips, ignore_blue)
         if one_point_place_action is not None:
-            return one_point_place_action
-        return None
+            return 1
+        return 0
 
     def process_four_points_placements(self, game_board, hand_chips):
         if game_board.is_tile_empty(self.center) and not game_board.is_tile_empty(self.top_left) \
@@ -144,7 +125,7 @@ class PlaceForCombinationStrategy(AdhocStrategy):
 
         return None
 
-    def process_two_points_placements(self, game_board, hand_chips):
+    def process_two_points_placements(self, game_board, hand_chips, ignore_blue):
         # Center
         result = self.check_tile(target=self.center, target_row=self.center_row, target_col=self.center_col,
                                  first=self.top_left, game_board=game_board, hand_chips=hand_chips)
@@ -170,40 +151,41 @@ class PlaceForCombinationStrategy(AdhocStrategy):
         if result is not None:
             return result
 
-        # Top Left
-        result = self.check_line(target=self.top_left, target_row=self.top_left_row,
-                                 target_col=self.top_left_col, first=self.top_center, second=self.top_right,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_line(target=self.top_left, target_row=self.top_left_row,
-                                 target_col=self.top_left_col, first=self.center, second=self.bottom_right,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_line(target=self.top_left, target_row=self.top_left_row,
-                                 target_col=self.top_left_col, first=self.center_left, second=self.bottom_left,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
+        if not ignore_blue:
+            # Top Left
+            result = self.check_line(target=self.top_left, target_row=self.top_left_row,
+                                     target_col=self.top_left_col, first=self.top_center, second=self.top_right,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_line(target=self.top_left, target_row=self.top_left_row,
+                                     target_col=self.top_left_col, first=self.center, second=self.bottom_right,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_line(target=self.top_left, target_row=self.top_left_row,
+                                     target_col=self.top_left_col, first=self.center_left, second=self.bottom_left,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
 
-        # Bottom Right
-        result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
-                                 target_col=self.bottom_right_col, first=self.center_right, second=self.top_right,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
-                                 target_col=self.bottom_right_col, first=self.center, second=self.top_left,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
-                                 target_col=self.bottom_right_col, first=self.bottom_center,
-                                 second=self.bottom_left,
-                                 game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
+            # Bottom Right
+            result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
+                                     target_col=self.bottom_right_col, first=self.center_right, second=self.top_right,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
+                                     target_col=self.bottom_right_col, first=self.center, second=self.top_left,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_line(target=self.bottom_right, target_row=self.bottom_right_row,
+                                     target_col=self.bottom_right_col, first=self.bottom_center,
+                                     second=self.bottom_left,
+                                     game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
 
         # Clockwise
         result = self.check_tile(target=self.top_center, target_row=self.top_center_row, target_col=self.top_center_col,
@@ -228,7 +210,7 @@ class PlaceForCombinationStrategy(AdhocStrategy):
 
         return None
 
-    def process_one_point_placements(self, game_board, hand_chips):
+    def process_one_point_placements(self, game_board, hand_chips, ignore_blue):
         # Center
         result = self.check_tile(target=self.center, target_row=self.center_row, target_col=self.center_col,
                                  first=self.top_center, game_board=game_board, hand_chips=hand_chips)
@@ -255,27 +237,28 @@ class PlaceForCombinationStrategy(AdhocStrategy):
         if result is not None:
             return result
 
-        # Top Left
-        result = self.check_tile(target=self.top_left, target_row=self.top_left_row, target_col=self.top_left_col,
-                                 first=self.top_center, game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_tile(target=self.top_left, target_row=self.top_left_row, target_col=self.top_left_col,
-                                 first=self.center_left, game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
+        if not ignore_blue:
+            # Top Left
+            result = self.check_tile(target=self.top_left, target_row=self.top_left_row, target_col=self.top_left_col,
+                                     first=self.top_center, game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_tile(target=self.top_left, target_row=self.top_left_row, target_col=self.top_left_col,
+                                     first=self.center_left, game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
 
-        # Bottom Right
-        result = self.check_tile(target=self.bottom_right, target_row=self.bottom_right_row,
-                                 target_col=self.bottom_right_col,
-                                 first=self.center_right, game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
-        result = self.check_tile(target=self.bottom_right, target_row=self.bottom_right_row,
-                                 target_col=self.bottom_right_col,
-                                 first=self.bottom_center, game_board=game_board, hand_chips=hand_chips)
-        if result is not None:
-            return result
+            # Bottom Right
+            result = self.check_tile(target=self.bottom_right, target_row=self.bottom_right_row,
+                                     target_col=self.bottom_right_col,
+                                     first=self.center_right, game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
+            result = self.check_tile(target=self.bottom_right, target_row=self.bottom_right_row,
+                                     target_col=self.bottom_right_col,
+                                     first=self.bottom_center, game_board=game_board, hand_chips=hand_chips)
+            if result is not None:
+                return result
 
         # Clockwise
         result = self.check_tile(target=self.top_center, target_row=self.top_center_row,

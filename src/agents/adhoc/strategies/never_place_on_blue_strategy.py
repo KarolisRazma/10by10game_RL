@@ -1,6 +1,6 @@
 from src.agents.actions.placing_action import PlaceChipAction
 from src.agents.adhoc.adhoc_strategy import AdhocStrategy
-from src.agents.adhoc.helpers.combination_order import CombinationOrder
+from src.agents.adhoc.commons.combination_order import CombinationOrder
 
 
 class NeverPlaceOnBlueStrategy(AdhocStrategy):

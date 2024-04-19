@@ -25,8 +25,10 @@ class Agent(ABC):
         # Endgame result flags: None at init
         self.last_game_result = None
 
-        self.losing_cause = []
-        self.points = []
+        self.file = None
+
+        self.losing_by_points = 0
+        self.losing_by_empty_container = 0
 
     # Resets episode details
     def reset(self):

@@ -204,36 +204,34 @@ class Environment:
             self.agents[0].wins += 1
             self.agents[0].last_game_result = GameResult.WON
             self.agents[1].last_game_result = GameResult.LOST
-            self.agents[1].losing_cause.append(1)
+            self.agents[1].losing_by_points += 1
             return
         if end_game_flag == 2:
             self.agents[1].wins += 1
             self.agents[0].last_game_result = GameResult.LOST
             self.agents[1].last_game_result = GameResult.WON
-            self.agents[0].losing_cause.append(1)
+            self.agents[0].losing_by_points += 1
             return
         if end_game_flag == 3:
             if self.agents[0].score < self.agents[1].score:
                 self.agents[0].wins += 1
                 self.agents[0].last_game_result = GameResult.WON
                 self.agents[1].last_game_result = GameResult.LOST
-                self.agents[1].losing_cause.append(2)
-                self.agents[1].points.append((self.agents[1].score, self.agents[0].score))
+                self.agents[1].losing_by_empty_container += 1
+                # self.agents[1].points.append((self.agents[1].score, self.agents[0].score))
                 return
             elif self.agents[0].score > self.agents[1].score:
                 self.agents[1].wins += 1
                 self.agents[0].last_game_result = GameResult.LOST
                 self.agents[1].last_game_result = GameResult.WON
-                self.agents[0].losing_cause.append(2)
-                self.agents[0].points.append((self.agents[0].score, self.agents[1].score))
+                self.agents[0].losing_by_empty_container += 1
+                # self.agents[0].points.append((self.agents[0].score, self.agents[1].score))
                 return
             else:
                 self.agents[0].draws += 1
                 self.agents[1].draws += 1
                 self.agents[0].last_game_result = GameResult.DRAW
                 self.agents[1].last_game_result = GameResult.DRAW
-                self.agents[0].losing_cause.append(3)
-                self.agents[1].losing_cause.append(3)
                 return
 
     def log_after_taking(self):
