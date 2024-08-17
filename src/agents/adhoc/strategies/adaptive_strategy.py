@@ -15,10 +15,15 @@ class AdaptiveStrategy(AdhocStrategy):
         enemy_score = state_data.enemy_score
         chips_left = state_data.chips_left
 
-        if chips_left <= 5 and my_score < 2:
+        if chips_left <= 1 and my_score <= 3:
             return Playstyle.AVOID_COMBINATION
 
         return Playstyle.LOOK_FOR_COMBINATION
+
+    # 7 0 7 1 7 2 7 3
+    # 6 0 6 1 6 2 6 3
+    # 5 0 5 1 5 2 5 3
+    # 4 0 4 1 4 2 4 3
 
     #
     #

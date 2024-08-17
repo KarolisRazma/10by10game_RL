@@ -20,7 +20,7 @@ class BalancedAgent2(AdhocAgent):
 
     def select_placing_action(self, game_board):
         if self.most_points_available_helper.give_helper_result(game_board, self.hand_chips) \
-                + self.current_state_data.my_score == 4:
+                + self.current_state_data.my_score >= 4:
             self.last_selected_placing_action = self.place_for_combination_strategy.give_strategy_result(
                 game_board, self.hand_chips, CombinationOrder.DESC)
             return self.last_selected_placing_action

@@ -44,6 +44,7 @@ class CustomAgent(AdhocAgent):
             self.last_selected_placing_action = self.bring_back_to_container_strategy.give_strategy_result(
                 game_board, self.hand_chips)
             if self.last_selected_placing_action is not None:
+                self.current_playstyle = Playstyle.AVOID_COMBINATION
                 return self.last_selected_placing_action
 
         # Otherwise depending on playstyle
